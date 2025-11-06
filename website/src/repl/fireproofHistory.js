@@ -59,10 +59,19 @@ export async function getRecentVersions(limit = 20) {
       }
     );
 
-    return result.rows.map(row => ({
-      _id: row.id,
-      ...row.value
-    }));
+    const versions = result.rows.map(row => {
+      const doc = row.doc || row.value;
+      console.log('[fireproof] loaded version:', doc);
+      return {
+        _id: row.id || doc._id,
+        type: doc.type,
+        code: doc.code,
+        timestamp: doc.timestamp,
+        preview: doc.preview
+      };
+    });
+
+    return versions;
   } catch (err) {
     console.error('[fireproof] error loading versions:', err);
     return [];
@@ -104,6 +113,12 @@ function generatePreview(code) {
  * @returns {string} Formatted time string
  */
 export function formatTimestamp(timestamp) {
+  // Ensure timestamp is a valid number
+  if (!timestamp || typeof timestamp !== 'number' || isNaN(timestamp)) {
+    console.warn('[fireproof] invalid timestamp:', timestamp);
+    return 'unknown time';
+  }
+
   const date = new Date(timestamp);
   const now = new Date();
   const diffMs = now - date;
