@@ -18,13 +18,6 @@ export function initHistory() {
   db = fireproof('strudel-history');
   initialized = true;
 
-  // Create index for sorting by timestamp
-  db.query('allVersions', function(doc, map) {
-    if (doc.type === 'version') {
-      map([doc.timestamp], doc);
-    }
-  });
-
   return db;
 }
 
@@ -57,10 +50,14 @@ export async function getRecentVersions(limit = 20) {
   if (!db) initHistory();
 
   try {
-    const result = await db.query('allVersions', {
-      descending: true,
-      limit
-    });
+    // Query by timestamp field (descending = newest first)
+    const result = await db.query(
+      (doc) => doc.type === 'version' ? doc.timestamp : null,
+      {
+        descending: true,
+        limit
+      }
+    );
 
     return result.rows.map(row => ({
       _id: row.id,
