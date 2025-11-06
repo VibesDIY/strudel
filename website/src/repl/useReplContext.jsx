@@ -91,10 +91,10 @@ export function useReplContext() {
           console.error('[fireproof] failed to save:', err);
         });
       }
-      // Shift+Ctrl+S or Shift+Cmd+S: Show history
+      // Shift+Ctrl+S or Shift+Cmd+S: Toggle history
       else if ((e.ctrlKey || e.metaKey) && e.key === 'S' && e.shiftKey) {
         e.preventDefault();
-        setIsHistorySelectorOpen(true);
+        setIsHistorySelectorOpen(prev => !prev);
       }
     };
 
