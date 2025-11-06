@@ -131,7 +131,7 @@ export function HistorySelector({ isOpen, onClose, onSelect }) {
         )}
 
         <div className="px-4 py-2 border-t border-foreground bg-lineHighlight text-xs text-foreground opacity-70">
-          {versions.length} snapshot{versions.length !== 1 ? 's' : ''} • Ctrl+S saves • Shift+Ctrl+S opens history
+          {versions.length} snapshot{versions.length !== 1 ? 's' : ''} • Ctrl+S saves • Shift+Ctrl+S shows history
         </div>
       </div>
     </div>

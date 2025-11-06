@@ -80,8 +80,13 @@ export function useReplContext() {
   // Global keyboard shortcuts for save/history
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Esc: Close history modal
+      if (e.key === 'Escape' && isHistorySelectorOpen) {
+        e.preventDefault();
+        setIsHistorySelectorOpen(false);
+      }
       // Ctrl+S or Cmd+S: Save snapshot
-      if ((e.ctrlKey || e.metaKey) && e.key === 's' && !e.shiftKey) {
+      else if ((e.ctrlKey || e.metaKey) && e.key === 's' && !e.shiftKey) {
         e.preventDefault();
         // Explicit save
         const code = editorRef.current?.code || '';
@@ -100,7 +105,7 @@ export function useReplContext() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isHistorySelectorOpen]);
 
   const init = useCallback(() => {
     const drawTime = [-2, 2];
