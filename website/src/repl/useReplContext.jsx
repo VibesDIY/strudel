@@ -116,21 +116,12 @@ export function useReplContext() {
         setIsHistorySelectorOpen(true);
       },
       beforeEval: () => audioReady,
-      afterEval: async (all) => {
+      afterEval: (all) => {
         const { code } = all;
         //post to iframe parent (like Udels) if it exists...
         window.parent?.postMessage(code);
 
         setLatestCode(code);
-
-        // Save version to Fireproof history on Ctrl+Enter
-        try {
-          await saveVersion(code);
-          logger('[fireproof] version saved', 'success');
-        } catch (err) {
-          console.error('[fireproof] failed to save version:', err);
-        }
-
         window.location.hash = '#' + code2hash(code);
         setDocumentTitle(code);
         const viewingPatternData = getViewingPatternData();
