@@ -37,6 +37,7 @@ import './Repl.css';
 import { setInterval, clearInterval } from 'worker-timers';
 import { getMetadata } from '../metadata_parser';
 import { initHistory, saveVersion, formatTimestamp } from './fireproofHistory.js';
+import { setActiveFooter, setIsPanelOpened } from '../settings.mjs';
 
 const { latestCode, maxPolyphony, audioDeviceName, multiChannelOrbits } = settingsMap.get();
 let modulesLoading, presets, drawContext, clearCanvas, audioReady;
@@ -68,7 +69,6 @@ export function useReplContext() {
   const shouldUseWebaudio = audioEngineTarget !== audioEngineTargets.osc;
   const defaultOutput = shouldUseWebaudio ? webaudioOutput : superdirtOutput;
   const getTime = shouldUseWebaudio ? getAudioContextCurrentTime : getPerformanceTimeSeconds;
-  const [isHistorySelectorOpen, setIsHistorySelectorOpen] = useState(false);
 
   // Initialize Fireproof history on mount
   useEffect(() => {
@@ -80,13 +80,8 @@ export function useReplContext() {
   // Global keyboard shortcuts for save/history
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Esc: Close history modal
-      if (e.key === 'Escape' && isHistorySelectorOpen) {
-        e.preventDefault();
-        setIsHistorySelectorOpen(false);
-      }
       // Ctrl+S or Cmd+S: Save snapshot
-      else if ((e.ctrlKey || e.metaKey) && e.key === 's' && !e.shiftKey) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's' && !e.shiftKey) {
         e.preventDefault();
         // Explicit save
         const code = editorRef.current?.code || '';
@@ -96,16 +91,17 @@ export function useReplContext() {
           console.error('[fireproof] failed to save:', err);
         });
       }
-      // Shift+Ctrl+S or Shift+Cmd+S: Toggle history
+      // Shift+Ctrl+S or Shift+Cmd+S: Open history tab
       else if ((e.ctrlKey || e.metaKey) && e.key === 'S' && e.shiftKey) {
         e.preventDefault();
-        setIsHistorySelectorOpen(prev => !prev);
+        setIsPanelOpened(true);
+        setActiveFooter('history');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isHistorySelectorOpen]);
+  }, []);
 
   const init = useCallback(() => {
     const drawTime = [-2, 2];
@@ -284,8 +280,6 @@ export function useReplContext() {
     error,
     editorRef,
     containerRef,
-    isHistorySelectorOpen,
-    setIsHistorySelectorOpen,
     handleLoadVersion,
   };
   return context;

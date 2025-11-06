@@ -4,7 +4,6 @@ import { Code } from '@src/repl/components/Code';
 import UserFacingErrorMessage from '@src/repl/components/UserFacingErrorMessage';
 import { Header } from './Header';
 import { useSettings } from '@src/settings.mjs';
-import { HistorySelector } from './HistorySelector';
 
 // type Props = {
 //  context: replcontext,
@@ -12,7 +11,7 @@ import { HistorySelector } from './HistorySelector';
 
 export default function ReplEditor(Props) {
   const { context, ...editorProps } = Props;
-  const { containerRef, editorRef, error, init, pending, isHistorySelectorOpen, setIsHistorySelectorOpen, handleLoadVersion } = context;
+  const { containerRef, editorRef, error, init, pending } = context;
   const settings = useSettings();
   const { panelPosition, isZen } = settings;
 
@@ -26,11 +25,6 @@ export default function ReplEditor(Props) {
       </div>
       <UserFacingErrorMessage error={error} />
       {!isZen && panelPosition === 'bottom' && <HorizontalPanel context={context} />}
-      <HistorySelector
-        isOpen={isHistorySelectorOpen}
-        onClose={() => setIsHistorySelectorOpen(false)}
-        onSelect={handleLoadVersion}
-      />
     </div>
   );
 }
