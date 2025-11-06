@@ -77,6 +77,31 @@ export function useReplContext() {
     }
   }, []);
 
+  // Global keyboard shortcuts for save/history
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl+S or Cmd+S: Save snapshot
+      if ((e.ctrlKey || e.metaKey) && e.key === 's' && !e.shiftKey) {
+        e.preventDefault();
+        // Explicit save
+        const code = editorRef.current?.code || '';
+        saveVersion(code).then(() => {
+          logger('[fireproof] snapshot saved', 'success');
+        }).catch(err => {
+          console.error('[fireproof] failed to save:', err);
+        });
+      }
+      // Shift+Ctrl+S or Shift+Cmd+S: Show history
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'S' && e.shiftKey) {
+        e.preventDefault();
+        setIsHistorySelectorOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const init = useCallback(() => {
     const drawTime = [-2, 2];
     const drawContext = getDrawContext();
@@ -103,17 +128,12 @@ export function useReplContext() {
         }
       },
       onSave: async () => {
-        // Explicit save with Ctrl+S
-        try {
-          const code = editorRef.current?.code || '';
-          await saveVersion(code);
-          logger('[fireproof] snapshot saved', 'success');
-        } catch (err) {
-          console.error('[fireproof] failed to save:', err);
-        }
+        // Called from CodeMirror keybinding (prevents default browser behavior)
+        // Actual save logic is in global keydown handler
       },
       onOpenHistory: () => {
-        setIsHistorySelectorOpen(true);
+        // Called from CodeMirror keybinding (prevents default browser behavior)
+        // Actual open logic is in global keydown handler
       },
       beforeEval: () => audioReady,
       afterEval: (all) => {
