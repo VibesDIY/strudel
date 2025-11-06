@@ -102,6 +102,16 @@ export function useReplContext() {
           clearHydra();
         }
       },
+      onSave: async () => {
+        // Explicit save with Ctrl+S
+        try {
+          const code = editorRef.current?.code || '';
+          await saveVersion(code);
+          logger('[fireproof] snapshot saved', 'success');
+        } catch (err) {
+          console.error('[fireproof] failed to save:', err);
+        }
+      },
       onOpenHistory: () => {
         setIsHistorySelectorOpen(true);
       },

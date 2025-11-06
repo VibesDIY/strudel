@@ -77,11 +77,11 @@ export function HistorySelector({ isOpen, onClose, onSelect }) {
         onClick={e => e.stopPropagation()}
       >
         <div className="px-4 py-3 border-b border-foreground">
-          <h2 className="text-lg font-bold text-foreground">Version History</h2>
+          <h2 className="text-lg font-bold text-foreground">Saved Snapshots</h2>
           <p className="text-sm text-foreground opacity-70">
             {versions.length > 0
               ? 'Use ↑↓ arrows to navigate, Enter to load, Esc to close'
-              : 'No versions saved yet. Press Ctrl+Enter to save the current code.'}
+              : 'No snapshots saved yet. Press Ctrl+S to save or Ctrl+Enter to save and run.'}
           </p>
         </div>
 
@@ -131,7 +131,7 @@ export function HistorySelector({ isOpen, onClose, onSelect }) {
         )}
 
         <div className="px-4 py-2 border-t border-foreground bg-lineHighlight text-xs text-foreground opacity-70">
-          {versions.length} version{versions.length !== 1 ? 's' : ''} • Ctrl+Enter saves • Shift+Ctrl+Enter opens history
+          {versions.length} snapshot{versions.length !== 1 ? 's' : ''} • Ctrl+S saves • Ctrl+Enter saves & runs • Shift+Ctrl+S opens history
         </div>
       </div>
     </div>
