@@ -36,6 +36,7 @@ import { getRandomTune, initCode, loadModules, shareCode } from './util.mjs';
 import './Repl.css';
 import { setInterval, clearInterval } from 'worker-timers';
 import { getMetadata } from '../metadata_parser';
+import { initHistory, saveVersion, formatTimestamp } from './fireproofHistory.js';
 
 const { latestCode, maxPolyphony, audioDeviceName, multiChannelOrbits } = settingsMap.get();
 let modulesLoading, presets, drawContext, clearCanvas, audioReady;
@@ -67,6 +68,14 @@ export function useReplContext() {
   const shouldUseWebaudio = audioEngineTarget !== audioEngineTargets.osc;
   const defaultOutput = shouldUseWebaudio ? webaudioOutput : superdirtOutput;
   const getTime = shouldUseWebaudio ? getAudioContextCurrentTime : getPerformanceTimeSeconds;
+  const [isHistorySelectorOpen, setIsHistorySelectorOpen] = useState(false);
+
+  // Initialize Fireproof history on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      initHistory();
+    }
+  }, []);
 
   const init = useCallback(() => {
     const drawTime = [-2, 2];
@@ -93,13 +102,25 @@ export function useReplContext() {
           clearHydra();
         }
       },
+      onOpenHistory: () => {
+        setIsHistorySelectorOpen(true);
+      },
       beforeEval: () => audioReady,
-      afterEval: (all) => {
+      afterEval: async (all) => {
         const { code } = all;
         //post to iframe parent (like Udels) if it exists...
         window.parent?.postMessage(code);
 
         setLatestCode(code);
+
+        // Save version to Fireproof history on Ctrl+Enter
+        try {
+          await saveVersion(code);
+          logger('[fireproof] version saved', 'success');
+        } catch (err) {
+          console.error('[fireproof] failed to save version:', err);
+        }
+
         window.location.hash = '#' + code2hash(code);
         setDocumentTitle(code);
         const viewingPatternData = getViewingPatternData();
@@ -215,6 +236,14 @@ export function useReplContext() {
   };
 
   const handleShare = async () => shareCode(replState.code);
+
+  const handleLoadVersion = (version) => {
+    if (editorRef.current) {
+      editorRef.current.setCode(version.code);
+      logger(`[fireproof] loaded version from ${formatTimestamp(version.timestamp)}`);
+    }
+  };
+
   const context = {
     started,
     pending,
@@ -229,6 +258,9 @@ export function useReplContext() {
     error,
     editorRef,
     containerRef,
+    isHistorySelectorOpen,
+    setIsHistorySelectorOpen,
+    handleLoadVersion,
   };
   return context;
 }
