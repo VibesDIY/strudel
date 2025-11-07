@@ -8,16 +8,16 @@ import {
   useViewingPatternData,
   userPattern,
 } from '../../../user_pattern_utils.mjs';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { getMetadata } from '../../../metadata_parser.js';
 import { useExamplePatterns } from '../../useExamplePatterns.jsx';
 import { parseJSON, isUdels } from '../../util.mjs';
 import { useSettings } from '../../../settings.mjs';
 import { ActionButton } from '../button/action-button.jsx';
 import { Pagination } from '../pagination/Pagination.jsx';
-import { useState } from 'react';
 import { useDebounce } from '../usedebounce.jsx';
 import cx from '@src/cx.mjs';
+import { getSnapshotCountByPattern, getRecentVersions, formatTimestamp } from '../../fireproofHistory.js';
 
 export function PatternLabel({ pattern } /* : { pattern: Tables<'code'> } */) {
   const meta = useMemo(() => getMetadata(pattern.code), [pattern]);
@@ -36,39 +36,133 @@ export function PatternLabel({ pattern } /* : { pattern: Tables<'code'> } */) {
   return <>{`${pattern.id}: ${title} by ${author.slice(0, 100)}`.slice(0, 60)}</>;
 }
 
-function PatternButton({ showOutline, onClick, pattern, showHiglight }) {
+function PatternButton({ showOutline, onClick, pattern, showHiglight, snapshotCount, isExpanded, onToggleExpand }) {
+  const hasSnapshots = snapshotCount > 0;
+
   return (
-    <a
-      className={cx(
-        'mr-4 hover:opacity-50 cursor-pointer block',
-        showOutline && 'outline outline-1',
-        showHiglight && 'bg-selection',
-      )}
-      onClick={onClick}
-    >
-      <PatternLabel pattern={pattern} />
-    </a>
+    <div className={cx('mr-4 cursor-pointer', showHiglight && 'bg-selection')}>
+      <div className="flex items-center justify-between hover:opacity-50">
+        <a
+          className={cx(
+            'flex-1 block',
+            showOutline && 'outline outline-1',
+          )}
+          onClick={onClick}
+        >
+          <PatternLabel pattern={pattern} />
+        </a>
+        {hasSnapshots && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleExpand();
+            }}
+            className="ml-2 px-1 text-foreground opacity-50 hover:opacity-100"
+            aria-label={isExpanded ? 'Collapse snapshots' : 'Expand snapshots'}
+          >
+            {isExpanded ? '🔽' : '◀️'}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
-function PatternButtons({ patterns, activePattern, onClick, started }) {
+function SnapshotList({ snapshots, onLoadSnapshot, currentCode }) {
+  return (
+    <div className="ml-4 border-l border-foreground border-opacity-20">
+      {snapshots.map((snapshot) => {
+        const isSelected = currentCode === snapshot.code;
+        return (
+          <div
+            key={snapshot._id}
+            className="pl-4 py-1 text-sm hover:bg-lineHighlight cursor-pointer text-foreground opacity-70"
+            onClick={() => onLoadSnapshot(snapshot)}
+          >
+            <div className="flex items-center gap-1">
+              {isSelected && <span>🔥</span>}
+              <div className="truncate">{snapshot.preview}</div>
+            </div>
+            <div className="text-xs opacity-50">{formatTimestamp(snapshot.timestamp)}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PatternButtons({ patterns, activePattern, onClick, started, context, expandPatternId }) {
   const viewingPatternStore = useViewingPatternData();
   const viewingPatternData = parseJSON(viewingPatternStore);
   const viewingPatternID = viewingPatternData.id;
+
+  const [snapshotCounts, setSnapshotCounts] = useState({});
+  const [expandedPatterns, setExpandedPatterns] = useState(new Set());
+  const [patternSnapshots, setPatternSnapshots] = useState({});
+
+  useEffect(() => {
+    loadSnapshotCounts();
+  }, [patterns]);
+
+  // Auto-expand when expandPatternId changes
+  useEffect(() => {
+    if (expandPatternId && snapshotCounts[expandPatternId] > 0) {
+      toggleExpand(expandPatternId);
+    }
+  }, [expandPatternId]);
+
+  async function loadSnapshotCounts() {
+    const counts = await getSnapshotCountByPattern();
+    setSnapshotCounts(counts);
+  }
+
+  async function toggleExpand(patternId) {
+    const newExpandedPatterns = new Set(expandedPatterns);
+    if (newExpandedPatterns.has(patternId)) {
+      newExpandedPatterns.delete(patternId);
+    } else {
+      newExpandedPatterns.add(patternId);
+      // Load snapshots for this pattern if not already loaded
+      if (!patternSnapshots[patternId]) {
+        const snapshots = await getRecentVersions(50, patternId);
+        setPatternSnapshots(prev => ({ ...prev, [patternId]: snapshots }));
+      }
+    }
+    setExpandedPatterns(newExpandedPatterns);
+  }
+
+  const handleLoadSnapshot = (snapshot) => {
+    context.handleLoadVersion(snapshot);
+  };
+
   return (
     <div className="">
       {Object.values(patterns)
         .reverse()
         .map((pattern) => {
           const id = pattern.id;
+          const isExpanded = expandedPatterns.has(id);
+          const snapshots = patternSnapshots[id] || [];
+
           return (
-            <PatternButton
-              pattern={pattern}
-              key={id}
-              showHiglight={id === viewingPatternID}
-              showOutline={id === activePattern && started}
-              onClick={() => onClick(id)}
-            />
+            <div key={id}>
+              <PatternButton
+                pattern={pattern}
+                showHiglight={id === viewingPatternID}
+                showOutline={id === activePattern && started}
+                onClick={() => onClick(id)}
+                snapshotCount={snapshotCounts[id] || 0}
+                isExpanded={isExpanded}
+                onToggleExpand={() => toggleExpand(id)}
+              />
+              {isExpanded && snapshots.length > 0 && (
+                <SnapshotList
+                  snapshots={snapshots}
+                  onLoadSnapshot={handleLoadSnapshot}
+                  currentCode={viewingPatternData.code}
+                />
+              )}
+            </div>
           );
         })}
     </div>
@@ -79,7 +173,7 @@ const updateCodeWindow = (context, patternData, reset = false) => {
   context.handleUpdate(patternData, reset);
 };
 
-function UserPatterns({ context }) {
+function UserPatterns({ context, expandPatternId }) {
   const activePattern = useActivePattern();
   const viewingPatternStore = useViewingPatternData();
   const viewingPatternData = parseJSON(viewingPatternStore);
@@ -144,6 +238,8 @@ function UserPatterns({ context }) {
           started={context.started}
           activePattern={activePattern}
           viewingPatternID={viewingPatternID}
+          context={context}
+          expandPatternId={expandPatternId}
         />
         {/* )} */}
       </div>
@@ -233,12 +329,12 @@ function PublicPatterns({ context }) {
   return <LatestPatterns context={context} />;
 }
 
-export function PatternsTab({ context }) {
+export function PatternsTab({ context, expandPatternId }) {
   const { patternFilter } = useSettings();
 
   return (
     <div className="px-4 w-full text-foreground  space-y-2  flex flex-col overflow-hidden max-h-full h-full">
-      <UserPatterns context={context} />
+      <UserPatterns context={context} expandPatternId={expandPatternId} />
     </div>
   );
   /* return (

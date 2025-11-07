@@ -22,31 +22,34 @@ export function initHistory() {
 }
 
 /**
- * Save a new version (called on Ctrl+Enter)
+ * Save a new version (called on Ctrl+S)
  * @param {string} code - The code to save
+ * @param {string} patternId - The pattern ID this snapshot belongs to
  * @returns {Promise<object>} The saved document
  */
-export async function saveVersion(code) {
+export async function saveVersion(code, patternId = null) {
   if (!db) initHistory();
 
   const version = {
     type: 'version',
     code,
+    patternId,
     timestamp: Date.now(),
     preview: generatePreview(code),
   };
 
   const result = await db.put(version);
-  console.log('[fireproof] saved version:', result.id);
+  console.log('[fireproof] saved version:', result.id, 'for pattern:', patternId);
   return { ...version, _id: result.id };
 }
 
 /**
  * Get recent versions (for history selector)
  * @param {number} limit - Maximum number of versions to return
+ * @param {string} patternId - Optional pattern ID to filter by
  * @returns {Promise<Array>} Array of version documents
  */
-export async function getRecentVersions(limit = 20) {
+export async function getRecentVersions(limit = 20, patternId = null) {
   if (!db) initHistory();
 
   try {
@@ -55,22 +58,29 @@ export async function getRecentVersions(limit = 20) {
       (doc) => doc.type === 'version' ? doc.timestamp : null,
       {
         descending: true,
-        limit
+        limit: patternId ? 1000 : limit  // Get more if we need to filter
       }
     );
 
-    const versions = result.rows.map(row => {
+    let versions = result.rows.map(row => {
       const doc = row.doc || row.value;
-      console.log('[fireproof] loaded version:', doc);
       return {
         _id: row.id || doc._id,
         type: doc.type,
         code: doc.code,
+        patternId: doc.patternId,
         timestamp: doc.timestamp,
         preview: doc.preview
       };
     });
 
+    // Filter by patternId if provided
+    if (patternId) {
+      versions = versions.filter(v => v.patternId === patternId);
+      versions = versions.slice(0, limit);
+    }
+
+    console.log(`[fireproof] loaded ${versions.length} versions for pattern:`, patternId || 'all');
     return versions;
   } catch (err) {
     console.error('[fireproof] error loading versions:', err);
@@ -86,6 +96,55 @@ export async function getRecentVersions(limit = 20) {
 export async function getVersion(id) {
   if (!db) initHistory();
   return await db.get(id);
+}
+
+/**
+ * Get total count of all snapshots across all patterns
+ * @returns {Promise<number>} Total count of version documents
+ */
+export async function getTotalVersionCount() {
+  if (!db) initHistory();
+
+  try {
+    const result = await db.query(
+      (doc) => doc.type === 'version' ? doc.timestamp : null,
+      { descending: true, limit: 10000 }
+    );
+    return result.rows.length;
+  } catch (err) {
+    console.error('[fireproof] error counting versions:', err);
+    return 0;
+  }
+}
+
+/**
+ * Get snapshot count grouped by pattern ID
+ * @returns {Promise<Object>} Object mapping patternId to count { patternId: count, ... }
+ */
+export async function getSnapshotCountByPattern() {
+  if (!db) initHistory();
+
+  try {
+    const result = await db.query(
+      (doc) => doc.type === 'version' ? doc.timestamp : null,
+      { descending: true, limit: 10000 }
+    );
+
+    const counts = {};
+    result.rows.forEach(row => {
+      const doc = row.doc || row.value;
+      const patternId = doc.patternId;
+      if (patternId) {
+        counts[patternId] = (counts[patternId] || 0) + 1;
+      }
+    });
+
+    console.log('[fireproof] snapshot counts by pattern:', counts);
+    return counts;
+  } catch (err) {
+    console.error('[fireproof] error counting snapshots by pattern:', err);
+    return {};
+  }
 }
 
 /**

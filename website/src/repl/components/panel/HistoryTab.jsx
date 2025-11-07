@@ -1,20 +1,31 @@
 import { useEffect, useState } from 'react';
-import { getRecentVersions, formatTimestamp } from '../../fireproofHistory.js';
+import { getRecentVersions, getTotalVersionCount, formatTimestamp } from '../../fireproofHistory.js';
+import { useViewingPatternData } from '../../../user_pattern_utils.mjs';
+import { parseJSON } from '../../util.mjs';
 import cx from '@src/cx.mjs';
 
 export function HistoryTab({ context }) {
   const [versions, setVersions] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const { handleLoadVersion } = context;
 
+  const viewingPatternStore = useViewingPatternData();
+  const viewingPatternData = parseJSON(viewingPatternStore);
+  const patternId = viewingPatternData?.id || null;
+
   useEffect(() => {
     loadVersions();
-  }, []);
+  }, [patternId]);
 
   async function loadVersions() {
     setLoading(true);
-    const versions = await getRecentVersions(50);
+    const [versions, total] = await Promise.all([
+      getRecentVersions(50, patternId),
+      getTotalVersionCount()
+    ]);
     setVersions(versions);
+    setTotalCount(total);
     setLoading(false);
   }
 
@@ -40,7 +51,15 @@ export function HistoryTab({ context }) {
     <div className="flex flex-col h-full">
       <div className="px-4 py-2 border-b border-foreground border-opacity-20">
         <p className="text-xs text-foreground opacity-70">
-          {versions.length} snapshot{versions.length !== 1 ? 's' : ''} • Click to load
+          {patternId ? (
+            <>
+              {versions.length} snapshot{versions.length !== 1 ? 's' : ''} from pattern {patternId.slice(0, 8)} out of {totalCount} total • Click to load
+            </>
+          ) : (
+            <>
+              No pattern selected • {totalCount} total snapshot{totalCount !== 1 ? 's' : ''}
+            </>
+          )}
         </p>
       </div>
 

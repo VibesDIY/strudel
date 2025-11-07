@@ -85,17 +85,25 @@ export function useReplContext() {
         e.preventDefault();
         // Explicit save
         const code = editorRef.current?.code || '';
-        saveVersion(code).then(() => {
+        const viewingPatternData = getViewingPatternData();
+        const patternId = viewingPatternData?.id || null;
+        saveVersion(code, patternId).then(() => {
           logger('[fireproof] snapshot saved', 'success');
         }).catch(err => {
           console.error('[fireproof] failed to save:', err);
         });
       }
-      // Shift+Ctrl+S or Shift+Cmd+S: Open history tab
+      // Shift+Ctrl+S or Shift+Cmd+S: Open patterns tab and expand current pattern
       else if ((e.ctrlKey || e.metaKey) && e.key === 'S' && e.shiftKey) {
         e.preventDefault();
+        const viewingPatternData = getViewingPatternData();
+        const patternId = viewingPatternData?.id;
         setIsPanelOpened(true);
-        setActiveFooter('history');
+        setActiveFooter('patterns');
+        // Trigger expansion by setting a timestamp-based unique value
+        if (patternId) {
+          setExpandPatternTrigger({ patternId, timestamp: Date.now() });
+        }
       }
     };
 
@@ -196,6 +204,7 @@ export function useReplContext() {
   const { started, isDirty, error, activeCode, pending } = replState;
   const editorRef = useRef();
   const containerRef = useRef();
+  const [expandPatternTrigger, setExpandPatternTrigger] = useState(null);
 
   // this can be simplified once SettingsTab has been refactored to change codemirrorSettings directly!
   // this will be the case when the main repl is being replaced
@@ -281,6 +290,7 @@ export function useReplContext() {
     editorRef,
     containerRef,
     handleLoadVersion,
+    expandPatternTrigger,
   };
   return context;
 }
