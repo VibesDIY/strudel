@@ -117,14 +117,15 @@ function PatternButtons({ patterns, activePattern, onClick, started, context, ex
     loadSnapshotCounts();
   }, [patterns]);
 
-  // Subscribe to Fireproof database changes to reload counts
+  // Subscribe to Fireproof database changes to reload counts and expanded snapshots
   useEffect(() => {
     const db = getDatabase();
     const unsubscribe = db.subscribe(() => {
       loadSnapshotCounts();
+      reloadExpandedSnapshots();
     });
     return unsubscribe;
-  }, []);
+  }, [expandedPatterns]);
 
   // Auto-expand when expandPatternId changes
   useEffect(() => {
@@ -136,6 +137,18 @@ function PatternButtons({ patterns, activePattern, onClick, started, context, ex
   async function loadSnapshotCounts() {
     const counts = await getSnapshotCountByPattern();
     setSnapshotCounts(counts);
+  }
+
+  async function reloadExpandedSnapshots() {
+    // Reload snapshots for all currently expanded patterns
+    const updates = {};
+    for (const patternId of expandedPatterns) {
+      const snapshots = await getRecentVersions(50, patternId);
+      updates[patternId] = snapshots;
+    }
+    if (Object.keys(updates).length > 0) {
+      setPatternSnapshots(prev => ({ ...prev, ...updates }));
+    }
   }
 
   async function toggleExpand(patternId) {
