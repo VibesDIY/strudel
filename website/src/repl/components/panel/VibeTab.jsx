@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { callAI } from 'use-vibes';
 import { logger } from '@strudel/core';
+import { soundMap } from '@strudel/webaudio';
+import { useStore } from '@nanostores/react';
 
 // Strudel language context for LLM
 const STRUDEL_LLM_CONTEXT = `## Strudel (LLM Prompt Spec — compact)
@@ -57,6 +59,18 @@ export function VibeTab({ context }) {
   const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Get available sounds
+  const sounds = useStore(soundMap);
+  const availableSounds = useMemo(() => {
+    if (!sounds) return '';
+    const soundNames = Object.keys(sounds)
+      .filter(key => !key.startsWith('_'))
+      .sort();
+    return soundNames.length > 0
+      ? `\n\n### Available sounds\n${soundNames.join(', ')}`
+      : '';
+  }, [sounds]);
+
   const handleVibe = async () => {
     if (!prompt.trim()) {
       logger('[vibe] Please enter a prompt', 'warning');
@@ -67,7 +81,7 @@ export function VibeTab({ context }) {
     try {
       const currentCode = context.editorRef.current?.code || '';
 
-      const fullPrompt = `${STRUDEL_LLM_CONTEXT}
+      const fullPrompt = `${STRUDEL_LLM_CONTEXT}${availableSounds}
 
 User request: ${prompt}
 
