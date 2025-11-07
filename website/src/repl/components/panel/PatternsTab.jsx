@@ -17,7 +17,7 @@ import { ActionButton } from '../button/action-button.jsx';
 import { Pagination } from '../pagination/Pagination.jsx';
 import { useDebounce } from '../usedebounce.jsx';
 import cx from '@src/cx.mjs';
-import { getSnapshotCountByPattern, getRecentVersions, formatTimestamp, saveVersion, isDuplicateSnapshot, getDatabase } from '../../fireproofHistory.js';
+import { getSnapshotCountByPattern, getRecentVersions, formatTimestamp, saveVersion, isDuplicateSnapshot, getDatabase, deleteVersion } from '../../fireproofHistory.js';
 import { logger } from '@strudel/core';
 
 export function PatternLabel({ pattern } /* : { pattern: Tables<'code'> } */) {
@@ -69,7 +69,7 @@ function PatternButton({ showOutline, onClick, pattern, showHiglight, snapshotCo
   );
 }
 
-function SnapshotList({ snapshots, onLoadSnapshot, currentCode }) {
+function SnapshotList({ snapshots, onLoadSnapshot, onDeleteSnapshot, currentCode }) {
   return (
     <div className="ml-4 border-l border-foreground border-opacity-20">
       {snapshots.map((snapshot) => {
@@ -77,12 +77,24 @@ function SnapshotList({ snapshots, onLoadSnapshot, currentCode }) {
         return (
           <div
             key={snapshot._id}
-            className="pl-4 py-1 text-sm hover:bg-lineHighlight cursor-pointer text-foreground opacity-70"
+            className="pl-4 py-1 text-sm hover:bg-lineHighlight cursor-pointer text-foreground opacity-70 group"
             onClick={() => onLoadSnapshot(snapshot)}
           >
-            <div className="flex items-center gap-1">
-              {isSelected && <span>🔥</span>}
-              <div className="truncate">{snapshot.preview}</div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1 min-w-0">
+                {isSelected && <span>🔥</span>}
+                <div className="truncate">{snapshot.preview}</div>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteSnapshot(snapshot._id);
+                }}
+                className="opacity-0 group-hover:opacity-50 hover:!opacity-100 text-foreground"
+                aria-label="Delete snapshot"
+              >
+                ✕
+              </button>
             </div>
             <div className="text-xs opacity-50">{formatTimestamp(snapshot.timestamp)}</div>
           </div>
@@ -145,6 +157,16 @@ function PatternButtons({ patterns, activePattern, onClick, started, context, ex
     context.handleLoadVersion(snapshot);
   };
 
+  const handleDeleteSnapshot = async (snapshotId) => {
+    try {
+      await deleteVersion(snapshotId);
+      logger('[fireproof] snapshot deleted');
+    } catch (err) {
+      console.error('[fireproof] failed to delete:', err);
+      logger('[fireproof] failed to delete snapshot', 'error');
+    }
+  };
+
   return (
     <div className="">
       {Object.values(patterns)
@@ -169,6 +191,7 @@ function PatternButtons({ patterns, activePattern, onClick, started, context, ex
                 <SnapshotList
                   snapshots={snapshots}
                   onLoadSnapshot={handleLoadSnapshot}
+                  onDeleteSnapshot={handleDeleteSnapshot}
                   currentCode={viewingPatternData.code}
                 />
               )}

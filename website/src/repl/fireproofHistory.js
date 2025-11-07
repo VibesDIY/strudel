@@ -126,6 +126,23 @@ export async function getVersion(id) {
 }
 
 /**
+ * Delete a specific version by ID
+ * @param {string} id - Document ID to delete
+ * @returns {Promise<object>} The deletion result
+ */
+export async function deleteVersion(id) {
+  if (!db) initHistory();
+  try {
+    const result = await db.del(id);
+    console.log('[fireproof] deleted version:', id);
+    return result;
+  } catch (err) {
+    console.error('[fireproof] error deleting version:', err);
+    throw err;
+  }
+}
+
+/**
  * Get total count of all snapshots across all patterns
  * @returns {Promise<number>} Total count of version documents
  */
