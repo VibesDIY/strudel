@@ -77,9 +77,23 @@ export function useReplContext() {
     }
   }, []);
 
-  // Global keyboard shortcuts for save/history
+  // Global keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Ctrl+Enter or Alt+Enter: Evaluate code
+      if ((e.ctrlKey || e.altKey) && e.key === 'Enter') {
+        e.preventDefault();
+        editorRef.current?.evaluate();
+        return;
+      }
+
+      // Ctrl+. or Alt+.: Stop playback
+      if ((e.ctrlKey || e.altKey) && e.key === '.') {
+        e.preventDefault();
+        editorRef.current?.stop();
+        return;
+      }
+
       // Ctrl+S or Cmd+S: Save snapshot
       if ((e.ctrlKey || e.metaKey) && e.key === 's' && !e.shiftKey) {
         e.preventDefault();
@@ -94,9 +108,11 @@ export function useReplContext() {
         }).catch(err => {
           console.error('[fireproof] failed to save:', err);
         });
+        return;
       }
+
       // Shift+Ctrl+S or Shift+Cmd+S: Open patterns tab and expand current pattern
-      else if ((e.ctrlKey || e.metaKey) && e.key === 'S' && e.shiftKey) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'S' && e.shiftKey) {
         e.preventDefault();
         const viewingPatternData = getViewingPatternData();
         const patternId = viewingPatternData?.id;
@@ -106,6 +122,7 @@ export function useReplContext() {
         if (patternId) {
           setExpandPatternTrigger({ patternId, timestamp: Date.now() });
         }
+        return;
       }
     };
 

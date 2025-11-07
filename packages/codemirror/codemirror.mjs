@@ -103,23 +103,6 @@ export function initEditor({ initialCode = '', onChange, onEvaluate, onStop, onS
       Prec.highest(
         keymap.of([
           {
-            key: 'Ctrl-Enter',
-            run: () => onEvaluate?.(),
-          },
-          {
-            key: 'Alt-Enter',
-            run: () => onEvaluate?.(),
-          },
-          {
-            key: 'Ctrl-.',
-            run: () => onStop?.(),
-          },
-          {
-            key: 'Alt-.',
-            preventDefault: true,
-            run: () => onStop?.(),
-          },
-          {
             key: 'Ctrl-s',
             run: () => {
               onSave?.();
@@ -133,10 +116,6 @@ export function initEditor({ initialCode = '', onChange, onEvaluate, onStop, onS
               return true;
             },
           },
-          /* {
-            key: 'Ctrl-Shift-.',
-            run: () => (onPanic ? onPanic() : onStop?.()),
-          }, */
         ]),
       ),
     ],
