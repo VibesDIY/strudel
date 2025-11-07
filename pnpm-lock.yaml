@@ -847,8 +847,8 @@ importers:
         specifier: ^3.4.17
         version: 3.4.17
       use-vibes:
-        specifier: 0.15.16-dev-types-fix
-        version: 0.15.16-dev-types-fix(react@19.0.0)(typescript@5.7.3)
+        specifier: '*'
+        version: 0.15.17(react@19.0.0)(typescript@5.7.3)
       worker-timers:
         specifier: ^8.0.13
         version: 8.0.13
@@ -3058,18 +3058,18 @@ packages:
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
 
-  '@vibes.diy/prompts@0.15.16-dev-types-fix':
-    resolution: {integrity: sha512-pknA/qdnmy+EuNd9OCtjv+9ZF5R4LFrMPH4gu9mFrCbxUJQgIAipZbc4mtq6PYlcM77UeAsQbV1Xzk1vODtPkg==}
+  '@vibes.diy/prompts@0.15.17':
+    resolution: {integrity: sha512-QLNeRRkPty9VbM0IBSWtixi7y7EuRAzwrKgopJxZH2k8yuj69CSNxL3D8/fYLzk+6IyR9pHMp+OfpHOKIqmDGw==}
     peerDependencies:
       react: '>=19.1.0'
 
-  '@vibes.diy/use-vibes-base@0.15.16-dev-types-fix':
-    resolution: {integrity: sha512-1KETHoOZvca8b9172elsbYgWY5yqtyd/bGRqjn1W2RukgYPpugXO4xsnrJiRQea6JDEQalAEmRU+ymtFQSDnww==}
+  '@vibes.diy/use-vibes-base@0.15.17':
+    resolution: {integrity: sha512-cEGD+i97LjTiH9zGc/UTM/vkROzB9RW/vacP05Lqstmu8OFztoOI2ntPzsPmSsiCo/y56AGJ6a2Nyy1iUWrWzg==}
     peerDependencies:
       react: '>=19.1.0'
 
-  '@vibes.diy/use-vibes-types@0.15.16-dev-types-fix':
-    resolution: {integrity: sha512-bheL4f8zCOPXOVFci5a5nhO1Wb7D9o3YF8u9IyuC2HgeXMS3ho6b+csdB24gG5QYzEB0BLo796BWz3xxmIdDFQ==}
+  '@vibes.diy/use-vibes-types@0.15.17':
+    resolution: {integrity: sha512-qgB0Ae8vUbF8OtRLeS0SeiZ6LnrS7Aqo/bIE1mMwdThe6Gm5r30v5B2uV4hGc/Qp/aT7zsGMlZf6wZEmBS015A==}
     peerDependencies:
       react: '>=19.1.0'
 
@@ -3479,8 +3479,8 @@ packages:
     resolution: {integrity: sha512-B+L5iIa9mgcjLbliir2th36yEwPftrzteHYujzsx3dFP/31GCHcIeS8f5MGd80odLOjaOvSpU3EEAmRQptkxLQ==}
     engines: {node: ^16.14.0 || >=18.0.0}
 
-  call-ai@0.15.16-dev-types-fix:
-    resolution: {integrity: sha512-OIiKVrDQo6yQXH3T8opuCxmNezbcleLrUx3/AfSEE7hbK+YpBlNZas4yBnitRLDQCu1qZl3i1ypJ8c3SjmRmnA==}
+  call-ai@0.15.17:
+    resolution: {integrity: sha512-mwU56mtlQewEUMROWWeWMJlOQqTKwHhpGH3XNNVq/TvQaV7y33mtJCDhfY3ZhpirX5sueHhwSUNlExS9QzK8LA==}
     engines: {node: '>=20.0.0'}
 
   call-bind-apply-helpers@1.0.1:
@@ -7776,8 +7776,8 @@ packages:
       '@adviser/cement': '>=0.4.20'
       react: '>=18.0.0'
 
-  use-vibes@0.15.16-dev-types-fix:
-    resolution: {integrity: sha512-3PFBH0ilWNEt/KB6CZQkvtL+kCR2GyLe+pGin6Yx1UFVTLXUrPYRVNnQq8nbDHEyh8T2HKtS53goTBhTQXPEWw==}
+  use-vibes@0.15.17:
+    resolution: {integrity: sha512-V0O0x/s2aPCkly8RPXlOBhyximvvVOUICWFPWwgJmrp9mDVNR5HNrQ5SpCZgJP0soPReUz8Gnvg2g7glJqWfcw==}
     peerDependencies:
       react: '>=19.1.0'
 
@@ -11077,27 +11077,27 @@ snapshots:
 
   '@ungap/structured-clone@1.3.0': {}
 
-  '@vibes.diy/prompts@0.15.16-dev-types-fix(react@19.0.0)(typescript@5.7.3)':
+  '@vibes.diy/prompts@0.15.17(react@19.0.0)(typescript@5.7.3)':
     dependencies:
       '@adviser/cement': 0.4.60(typescript@5.7.3)
       '@fireproof/core-types-base': 0.23.15(typescript@5.7.3)
-      '@vibes.diy/use-vibes-types': 0.15.16-dev-types-fix(@adviser/cement@0.4.60(typescript@5.7.3))(react@19.0.0)(typescript@5.7.3)
-      call-ai: 0.15.16-dev-types-fix(typescript@5.7.3)
+      '@vibes.diy/use-vibes-types': 0.15.17(@adviser/cement@0.4.60(typescript@5.7.3))(react@19.0.0)(typescript@5.7.3)
+      call-ai: 0.15.17(typescript@5.7.3)
       react: 19.0.0
     transitivePeerDependencies:
       - bufferutil
       - typescript
       - utf-8-validate
 
-  '@vibes.diy/use-vibes-base@0.15.16-dev-types-fix(react@19.0.0)(typescript@5.7.3)':
+  '@vibes.diy/use-vibes-base@0.15.17(react@19.0.0)(typescript@5.7.3)':
     dependencies:
       '@adviser/cement': 0.4.60(typescript@5.7.3)
       '@fireproof/core-runtime': 0.23.15(typescript@5.7.3)
       '@fireproof/core-types-base': 0.23.15(typescript@5.7.3)
       '@fireproof/core-types-protocols-cloud': 0.23.15(typescript@5.7.3)
-      '@vibes.diy/prompts': 0.15.16-dev-types-fix(react@19.0.0)(typescript@5.7.3)
-      '@vibes.diy/use-vibes-types': 0.15.16-dev-types-fix(@adviser/cement@0.4.60(typescript@5.7.3))(react@19.0.0)(typescript@5.7.3)
-      call-ai: 0.15.16-dev-types-fix(typescript@5.7.3)
+      '@vibes.diy/prompts': 0.15.17(react@19.0.0)(typescript@5.7.3)
+      '@vibes.diy/use-vibes-types': 0.15.17(@adviser/cement@0.4.60(typescript@5.7.3))(react@19.0.0)(typescript@5.7.3)
+      call-ai: 0.15.17(typescript@5.7.3)
       react: 19.0.0
       react-dom: 19.2.0(react@19.0.0)
       use-fireproof: 0.23.15(@adviser/cement@0.4.60(typescript@5.7.3))(react@19.0.0)(typescript@5.7.3)
@@ -11107,9 +11107,9 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@vibes.diy/use-vibes-types@0.15.16-dev-types-fix(@adviser/cement@0.4.60(typescript@5.7.3))(react@19.0.0)(typescript@5.7.3)':
+  '@vibes.diy/use-vibes-types@0.15.17(@adviser/cement@0.4.60(typescript@5.7.3))(react@19.0.0)(typescript@5.7.3)':
     dependencies:
-      call-ai: 0.15.16-dev-types-fix(typescript@5.7.3)
+      call-ai: 0.15.17(typescript@5.7.3)
       react: 19.0.0
       use-fireproof: 0.23.15(@adviser/cement@0.4.60(typescript@5.7.3))(react@19.0.0)(typescript@5.7.3)
     transitivePeerDependencies:
@@ -11693,7 +11693,7 @@ snapshots:
       tar: 6.2.1
       unique-filename: 3.0.0
 
-  call-ai@0.15.16-dev-types-fix(typescript@5.7.3):
+  call-ai@0.15.17(typescript@5.7.3):
     dependencies:
       '@adviser/cement': 0.4.60(typescript@5.7.3)
       '@fireproof/core-runtime': 0.23.15(typescript@5.7.3)
@@ -16844,9 +16844,9 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  use-vibes@0.15.16-dev-types-fix(react@19.0.0)(typescript@5.7.3):
+  use-vibes@0.15.17(react@19.0.0)(typescript@5.7.3):
     dependencies:
-      '@vibes.diy/use-vibes-base': 0.15.16-dev-types-fix(react@19.0.0)(typescript@5.7.3)
+      '@vibes.diy/use-vibes-base': 0.15.17(react@19.0.0)(typescript@5.7.3)
       react: 19.0.0
       react-dom: 19.2.0(react@19.0.0)
     transitivePeerDependencies:
