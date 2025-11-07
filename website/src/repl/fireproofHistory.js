@@ -192,6 +192,36 @@ export async function getSnapshotCountByPattern() {
 }
 
 /**
+ * Get all unique pattern IDs that have snapshots
+ * @returns {Promise<Array<string>>} Array of unique pattern IDs
+ */
+export async function getAllSnapshotPatternIds() {
+  if (!db) initHistory();
+
+  try {
+    const result = await db.query(
+      (doc) => doc.type === 'version' ? doc.timestamp : null,
+      { descending: true, limit: 10000 }
+    );
+
+    const patternIds = new Set();
+    result.rows.forEach(row => {
+      const doc = row.doc || row.value;
+      if (doc.patternId) {
+        patternIds.add(doc.patternId);
+      }
+    });
+
+    const ids = Array.from(patternIds);
+    console.log('[fireproof] found', ids.length, 'unique pattern IDs with snapshots');
+    return ids;
+  } catch (err) {
+    console.error('[fireproof] error getting all pattern IDs:', err);
+    return [];
+  }
+}
+
+/**
  * Generate a preview string from code (first line or pattern name)
  * @param {string} code - The code to preview
  * @returns {string} Preview text

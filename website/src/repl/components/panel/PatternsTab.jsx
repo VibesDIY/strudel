@@ -17,7 +17,7 @@ import { ActionButton } from '../button/action-button.jsx';
 import { Pagination } from '../pagination/Pagination.jsx';
 import { useDebounce } from '../usedebounce.jsx';
 import cx from '@src/cx.mjs';
-import { getSnapshotCountByPattern, getRecentVersions, formatTimestamp, saveVersion, isDuplicateSnapshot, getDatabase, deleteVersion } from '../../fireproofHistory.js';
+import { getSnapshotCountByPattern, getRecentVersions, formatTimestamp, saveVersion, isDuplicateSnapshot, getDatabase, deleteVersion, getAllSnapshotPatternIds } from '../../fireproofHistory.js';
 import { logger } from '@strudel/core';
 
 export function PatternLabel({ pattern } /* : { pattern: Tables<'code'> } */) {
@@ -184,6 +184,40 @@ function UserPatterns({ context }) {
   const { userPatterns, patternFilter, patternAutoStart } = useSettings();
   const viewingPatternID = viewingPatternData?.id;
 
+  // Merge userPatterns with orphan patterns (those only in snapshots)
+  const [mergedPatterns, setMergedPatterns] = useState(userPatterns);
+
+  useEffect(() => {
+    async function loadOrphanPatterns() {
+      const allSnapshotPatternIds = await getAllSnapshotPatternIds();
+      const orphanIds = allSnapshotPatternIds.filter(
+        id => !(id in userPatterns)
+      );
+
+      if (orphanIds.length > 0) {
+        const orphans = {};
+        orphanIds.forEach(id => {
+          orphans[id] = {
+            id,
+            code: '',
+            created_at: 0,
+            collection: 'user'
+          };
+        });
+
+        console.log('[fireproof] found', orphanIds.length, 'orphan patterns:', orphanIds);
+        setMergedPatterns({
+          ...userPatterns,
+          ...orphans
+        });
+      } else {
+        setMergedPatterns(userPatterns);
+      }
+    }
+
+    loadOrphanPatterns();
+  }, [userPatterns]);
+
   const handleSnap = async () => {
     const code = context.editorRef.current?.code || viewingPatternData?.code || '';
     const patternId = viewingPatternID || null;
@@ -254,13 +288,13 @@ function UserPatterns({ context }) {
         {/* {patternFilter === patternFilterName.user && ( */}
         <PatternButtons
           onClick={(id) => {
-            updateCodeWindow(context, { ...userPatterns[id], collection: userPattern.collection }, patternAutoStart);
+            updateCodeWindow(context, { ...mergedPatterns[id], collection: userPattern.collection }, patternAutoStart);
 
             if (context.started && activePattern === id) {
               context.handleEvaluate();
             }
           }}
-          patterns={userPatterns}
+          patterns={mergedPatterns}
           started={context.started}
           activePattern={activePattern}
           viewingPatternID={viewingPatternID}
