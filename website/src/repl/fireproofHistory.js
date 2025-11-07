@@ -22,6 +22,24 @@ export function initHistory() {
 }
 
 /**
+ * Check if code already exists as a snapshot for this pattern
+ * @param {string} code - The code to check
+ * @param {string} patternId - The pattern ID to check within
+ * @returns {Promise<boolean>} True if duplicate exists
+ */
+export async function isDuplicateSnapshot(code, patternId = null) {
+  if (!db) initHistory();
+
+  try {
+    const versions = await getRecentVersions(50, patternId);
+    return versions.some(v => v.code === code);
+  } catch (err) {
+    console.error('[fireproof] error checking for duplicates:', err);
+    return false; // On error, allow save
+  }
+}
+
+/**
  * Save a new version (called on Ctrl+S)
  * @param {string} code - The code to save
  * @param {string} patternId - The pattern ID this snapshot belongs to

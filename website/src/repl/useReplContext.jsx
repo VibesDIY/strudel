@@ -36,7 +36,7 @@ import { getRandomTune, initCode, loadModules, shareCode } from './util.mjs';
 import './Repl.css';
 import { setInterval, clearInterval } from 'worker-timers';
 import { getMetadata } from '../metadata_parser';
-import { initHistory, saveVersion, formatTimestamp } from './fireproofHistory.js';
+import { initHistory, saveVersion, formatTimestamp, isDuplicateSnapshot } from './fireproofHistory.js';
 import { setActiveFooter, setIsPanelOpened } from '../settings.mjs';
 
 const { latestCode, maxPolyphony, audioDeviceName, multiChannelOrbits } = settingsMap.get();
@@ -101,10 +101,21 @@ export function useReplContext() {
         const code = editorRef.current?.code || '';
         const viewingPatternData = getViewingPatternData();
         const patternId = viewingPatternData?.id || null;
-        saveVersion(code, patternId).then(() => {
-          logger('[fireproof] snapshot saved', 'success');
-          // Notify UI to reload snapshot counts
-          window.dispatchEvent(new CustomEvent('fireproof-snapshot-saved'));
+
+        // Check if this code is already snapped (fire emoji would show)
+        isDuplicateSnapshot(code, patternId).then(isDuplicate => {
+          if (isDuplicate) {
+            logger('[fireproof] already snapped', 'highlight');
+            return;
+          }
+
+          return saveVersion(code, patternId);
+        }).then((result) => {
+          if (result) {
+            logger('[fireproof] snapshot saved', 'success');
+            // Notify UI to reload snapshot counts
+            window.dispatchEvent(new CustomEvent('fireproof-snapshot-saved'));
+          }
         }).catch(err => {
           console.error('[fireproof] failed to save:', err);
         });

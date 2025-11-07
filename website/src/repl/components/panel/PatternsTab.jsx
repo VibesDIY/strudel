@@ -17,7 +17,7 @@ import { ActionButton } from '../button/action-button.jsx';
 import { Pagination } from '../pagination/Pagination.jsx';
 import { useDebounce } from '../usedebounce.jsx';
 import cx from '@src/cx.mjs';
-import { getSnapshotCountByPattern, getRecentVersions, formatTimestamp, saveVersion } from '../../fireproofHistory.js';
+import { getSnapshotCountByPattern, getRecentVersions, formatTimestamp, saveVersion, isDuplicateSnapshot } from '../../fireproofHistory.js';
 import { logger } from '@strudel/core';
 
 export function PatternLabel({ pattern } /* : { pattern: Tables<'code'> } */) {
@@ -193,6 +193,14 @@ function UserPatterns({ context, expandPatternId }) {
   const handleSnap = async () => {
     const code = context.editorRef.current?.code || viewingPatternData?.code || '';
     const patternId = viewingPatternID || null;
+
+    // Check if this code is already snapped (fire emoji would show)
+    const isDuplicate = await isDuplicateSnapshot(code, patternId);
+    if (isDuplicate) {
+      logger('[fireproof] already snapped', 'highlight');
+      return;
+    }
+
     try {
       await saveVersion(code, patternId);
       logger('[fireproof] snapshot saved', 'success');
