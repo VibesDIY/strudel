@@ -22,6 +22,15 @@ export function initHistory() {
 }
 
 /**
+ * Get the database instance for subscriptions
+ * @returns {object} The Fireproof database
+ */
+export function getDatabase() {
+  if (!db) initHistory();
+  return db;
+}
+
+/**
  * Check if code already exists as a snapshot for this pattern
  * @param {string} code - The code to check
  * @param {string} patternId - The pattern ID to check within

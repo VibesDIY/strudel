@@ -17,7 +17,7 @@ import { ActionButton } from '../button/action-button.jsx';
 import { Pagination } from '../pagination/Pagination.jsx';
 import { useDebounce } from '../usedebounce.jsx';
 import cx from '@src/cx.mjs';
-import { getSnapshotCountByPattern, getRecentVersions, formatTimestamp, saveVersion, isDuplicateSnapshot } from '../../fireproofHistory.js';
+import { getSnapshotCountByPattern, getRecentVersions, formatTimestamp, saveVersion, isDuplicateSnapshot, getDatabase } from '../../fireproofHistory.js';
 import { logger } from '@strudel/core';
 
 export function PatternLabel({ pattern } /* : { pattern: Tables<'code'> } */) {
@@ -105,13 +105,13 @@ function PatternButtons({ patterns, activePattern, onClick, started, context, ex
     loadSnapshotCounts();
   }, [patterns]);
 
-  // Listen for snapshot-saved events to reload counts
+  // Subscribe to Fireproof database changes to reload counts
   useEffect(() => {
-    const handleSnapshotSaved = () => {
+    const db = getDatabase();
+    const unsubscribe = db.subscribe(() => {
       loadSnapshotCounts();
-    };
-    window.addEventListener('fireproof-snapshot-saved', handleSnapshotSaved);
-    return () => window.removeEventListener('fireproof-snapshot-saved', handleSnapshotSaved);
+    });
+    return unsubscribe;
   }, []);
 
   // Auto-expand when expandPatternId changes
@@ -204,8 +204,6 @@ function UserPatterns({ context, expandPatternId }) {
     try {
       await saveVersion(code, patternId);
       logger('[fireproof] snapshot saved', 'success');
-      // Trigger reload of snapshot counts - this will be picked up by PatternButtons
-      window.dispatchEvent(new CustomEvent('fireproof-snapshot-saved'));
     } catch (err) {
       console.error('[fireproof] failed to save:', err);
       logger('[fireproof] failed to save snapshot', 'error');
