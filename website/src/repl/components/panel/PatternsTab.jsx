@@ -187,6 +187,9 @@ function UserPatterns({ context }) {
   // Merge userPatterns with orphan patterns (those only in snapshots)
   const [mergedPatterns, setMergedPatterns] = useState(userPatterns);
 
+  // Create stable key from userPatterns to avoid infinite loop
+  const userPatternKeys = Object.keys(userPatterns).sort().join(',');
+
   useEffect(() => {
     async function loadOrphanPatterns() {
       const allSnapshotPatternIds = await getAllSnapshotPatternIds();
@@ -216,7 +219,7 @@ function UserPatterns({ context }) {
     }
 
     loadOrphanPatterns();
-  }, [userPatterns]);
+  }, [userPatternKeys]);
 
   const handleSnap = async () => {
     const code = context.editorRef.current?.code || viewingPatternData?.code || '';
