@@ -301,6 +301,7 @@ export function useReplContext() {
   const handleLoadVersion = (version) => {
     if (editorRef.current) {
       editorRef.current.setCode(version.code);
+      editorRef.current.evaluate();
       logger(`[fireproof] loaded version from ${formatTimestamp(version.timestamp)}`);
     }
   };
