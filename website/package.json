@@ -67,7 +67,7 @@
     "rehype-urls": "^1.2.0",
     "remark-toc": "^9.0.0",
     "tailwindcss": "^3.4.17",
-    "use-fireproof": "^0.23.15",
+    "use-vibes": "0.15.16-dev-types-fix",
     "worker-timers": "^8.0.13"
   },
   "devDependencies": {

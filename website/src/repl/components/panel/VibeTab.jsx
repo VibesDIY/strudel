@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { callAI } from 'use-fireproof';
+import { callAI } from 'use-vibes';
 import { logger } from '@strudel/core';
 
 // Strudel language context for LLM
