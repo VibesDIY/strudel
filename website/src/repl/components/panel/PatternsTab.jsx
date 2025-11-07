@@ -37,9 +37,7 @@ export function PatternLabel({ pattern } /* : { pattern: Tables<'code'> } */) {
   return <>{`${pattern.id}: ${title} by ${author.slice(0, 100)}`.slice(0, 60)}</>;
 }
 
-function PatternButton({ showOutline, onClick, pattern, showHiglight, snapshotCount, isExpanded, onToggleExpand }) {
-  const hasSnapshots = snapshotCount > 0;
-
+function PatternButton({ showOutline, onClick, pattern, showHiglight }) {
   return (
     <div className={cx('mr-4 cursor-pointer', showHiglight && 'bg-selection')}>
       <div className="flex items-center justify-between hover:opacity-50">
@@ -52,18 +50,6 @@ function PatternButton({ showOutline, onClick, pattern, showHiglight, snapshotCo
         >
           <PatternLabel pattern={pattern} />
         </a>
-        {hasSnapshots && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleExpand();
-            }}
-            className="ml-2 px-1 text-foreground opacity-50 hover:opacity-100"
-            aria-label={isExpanded ? 'Collapse snapshots' : 'Expand snapshots'}
-          >
-            {isExpanded ? '🔽' : '◀️'}
-          </button>
-        )}
       </div>
     </div>
   );
@@ -104,66 +90,42 @@ function SnapshotList({ snapshots, onLoadSnapshot, onDeleteSnapshot, currentCode
   );
 }
 
-function PatternButtons({ patterns, activePattern, onClick, started, context, expandPatternId }) {
+function PatternButtons({ patterns, activePattern, onClick, started, context }) {
   const viewingPatternStore = useViewingPatternData();
   const viewingPatternData = parseJSON(viewingPatternStore);
   const viewingPatternID = viewingPatternData.id;
 
   const [snapshotCounts, setSnapshotCounts] = useState({});
-  const [expandedPatterns, setExpandedPatterns] = useState(new Set());
   const [patternSnapshots, setPatternSnapshots] = useState({});
 
   useEffect(() => {
     loadSnapshotCounts();
+    loadAllSnapshots();
   }, [patterns]);
 
-  // Subscribe to Fireproof database changes to reload counts and expanded snapshots
+  // Subscribe to Fireproof database changes to reload counts and all snapshots
   useEffect(() => {
     const db = getDatabase();
     const unsubscribe = db.subscribe(() => {
       loadSnapshotCounts();
-      reloadExpandedSnapshots();
+      loadAllSnapshots();
     });
     return unsubscribe;
-  }, [expandedPatterns]);
-
-  // Auto-expand when expandPatternId changes
-  useEffect(() => {
-    if (expandPatternId && snapshotCounts[expandPatternId] > 0) {
-      toggleExpand(expandPatternId);
-    }
-  }, [expandPatternId]);
+  }, [patterns]);
 
   async function loadSnapshotCounts() {
     const counts = await getSnapshotCountByPattern();
     setSnapshotCounts(counts);
   }
 
-  async function reloadExpandedSnapshots() {
-    // Reload snapshots for all currently expanded patterns
-    const updates = {};
-    for (const patternId of expandedPatterns) {
-      const snapshots = await getRecentVersions(50, patternId);
-      updates[patternId] = snapshots;
+  async function loadAllSnapshots() {
+    // Load snapshots for all patterns eagerly
+    const allSnapshots = {};
+    for (const pattern of Object.values(patterns)) {
+      const snapshots = await getRecentVersions(50, pattern.id);
+      allSnapshots[pattern.id] = snapshots;
     }
-    if (Object.keys(updates).length > 0) {
-      setPatternSnapshots(prev => ({ ...prev, ...updates }));
-    }
-  }
-
-  async function toggleExpand(patternId) {
-    const newExpandedPatterns = new Set(expandedPatterns);
-    if (newExpandedPatterns.has(patternId)) {
-      newExpandedPatterns.delete(patternId);
-    } else {
-      newExpandedPatterns.add(patternId);
-      // Load snapshots for this pattern if not already loaded
-      if (!patternSnapshots[patternId]) {
-        const snapshots = await getRecentVersions(50, patternId);
-        setPatternSnapshots(prev => ({ ...prev, [patternId]: snapshots }));
-      }
-    }
-    setExpandedPatterns(newExpandedPatterns);
+    setPatternSnapshots(allSnapshots);
   }
 
   const handleLoadSnapshot = (snapshot) => {
@@ -186,7 +148,6 @@ function PatternButtons({ patterns, activePattern, onClick, started, context, ex
         .reverse()
         .map((pattern) => {
           const id = pattern.id;
-          const isExpanded = expandedPatterns.has(id);
           const snapshots = patternSnapshots[id] || [];
 
           return (
@@ -196,11 +157,8 @@ function PatternButtons({ patterns, activePattern, onClick, started, context, ex
                 showHiglight={id === viewingPatternID}
                 showOutline={id === activePattern && started}
                 onClick={() => onClick(id)}
-                snapshotCount={snapshotCounts[id] || 0}
-                isExpanded={isExpanded}
-                onToggleExpand={() => toggleExpand(id)}
               />
-              {isExpanded && snapshots.length > 0 && (
+              {snapshots.length > 0 && (
                 <SnapshotList
                   snapshots={snapshots}
                   onLoadSnapshot={handleLoadSnapshot}
@@ -219,7 +177,7 @@ const updateCodeWindow = (context, patternData, reset = false) => {
   context.handleUpdate(patternData, reset);
 };
 
-function UserPatterns({ context, expandPatternId }) {
+function UserPatterns({ context }) {
   const activePattern = useActivePattern();
   const viewingPatternStore = useViewingPatternData();
   const viewingPatternData = parseJSON(viewingPatternStore);
@@ -307,7 +265,6 @@ function UserPatterns({ context, expandPatternId }) {
           activePattern={activePattern}
           viewingPatternID={viewingPatternID}
           context={context}
-          expandPatternId={expandPatternId}
         />
         {/* )} */}
       </div>
@@ -397,12 +354,12 @@ function PublicPatterns({ context }) {
   return <LatestPatterns context={context} />;
 }
 
-export function PatternsTab({ context, expandPatternId }) {
+export function PatternsTab({ context }) {
   const { patternFilter } = useSettings();
 
   return (
     <div className="px-4 w-full text-foreground  space-y-2  flex flex-col overflow-hidden max-h-full h-full">
-      <UserPatterns context={context} expandPatternId={expandPatternId} />
+      <UserPatterns context={context} />
     </div>
   );
   /* return (
