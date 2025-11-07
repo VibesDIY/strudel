@@ -2,6 +2,56 @@ import { useState } from 'react';
 import { callAI } from 'use-fireproof';
 import { logger } from '@strudel/core';
 
+// Strudel language context for LLM
+const STRUDEL_LLM_CONTEXT = `## Strudel (LLM Prompt Spec — compact)
+
+### Core idea
+Patterns loop over **1 cycle** by default. Space separates events within a cycle. Most functions accept **numbers or patterns** and are chainable.
+
+### Mini‑notation (inside quotes)
+- Sequence: \`"a b c"\` (equal subdivisions per cycle)
+- Rest: \`"~"\`
+- Parallel (stack): \`"a,b"\`  ↔ \`stack(a,b)\`
+- Concatenate across cycles: \`"<a b>"\`
+- Group/subdivide: \`"[a b]"\` (keeps items together)
+- Repeat / speed: \`"x*2"\`  ↔ \`.fast(2)\`
+- Slow (stretch): \`"x/2"\`   ↔ \`.slow(2)\`
+- Euclidean: \`"x(3,8)"\`, rotation \`"x(3,8,1)"\`
+
+### Pattern builders (JS)
+- \`stack(p1, p2, ...)\` parallel layers
+- \`cat(p1, p2, ...)\`   cycle‑by‑cycle concatenation
+- \`seq(p1, p2, ...)\`   sequence within a cycle
+- Polymeter: \`"{a b, x y}"\`
+
+### Sound & notes
+- \`s("bd hh sd")\` or \`.sound("triangle")\` to select samples/synths
+- \`note("c4 d4 g4")\` letters **or** MIDI numbers \`"60 62 67"\`
+- **Chords (simultaneous):** \`note("[c3,eb3,g3]")\`
+- **Alternate chords:** \`note("<[c3,eb3,g3] [f3,a3,c4]>")\`
+
+### Time utilities
+- \`.fast(n)\` \`.slow(n)\` \`.euclid(k,n)\` \`.euclidRot(k,n,rot)\`
+- \`.swing(amount)\` human shuffle (0–1)
+- \`.nudge(cycles)\` small time shift (±)
+
+### Common params (numbers or patterns)
+- Level/pan: \`.gain(n)\` \`.pan(0..1)\`
+- Filters: \`.lpf(hz)\`/\`.cutoff(hz)\`, \`.hpf(hz)\`/\`.hcutoff(hz)\`, \`.resonance(q)\`/\`.lpq(q)\`
+- Envelope: \`.attack(s)\` \`.decay(s)\` \`.sustain(0..1)\` \`.release(s)\`
+- Space/time: \`.room(0..1)\` \`.delay(time)\`
+- Extras (examples): \`.phaser(n)\` \`.vib(n)\` \`.tremolo(n)\`
+
+### Example
+\`\`\`js
+stack(
+  s("bd ~ sd ~"),
+  s("hh*8"),
+  note("<c2 c2 g1 c2>").s("sawtooth").lpf(400).gain(0.8)
+).swing(0.6)
+\`\`\`
+`;
+
 export function VibeTab({ context }) {
   const [prompt, setPrompt] = useState('');
   const [response, setResponse] = useState('');
@@ -17,7 +67,12 @@ export function VibeTab({ context }) {
     try {
       const currentCode = context.editorRef.current?.code || '';
 
-      const fullPrompt = `${prompt}\n\nCurrent code:\n${currentCode}`;
+      const fullPrompt = `${STRUDEL_LLM_CONTEXT}
+
+User request: ${prompt}
+
+Current code:
+${currentCode}`;
 
       logger('[vibe] Calling AI...', 'highlight');
       const aiResponse = await callAI(fullPrompt, {
