@@ -89,6 +89,8 @@ export function useReplContext() {
         const patternId = viewingPatternData?.id || null;
         saveVersion(code, patternId).then(() => {
           logger('[fireproof] snapshot saved', 'success');
+          // Notify UI to reload snapshot counts
+          window.dispatchEvent(new CustomEvent('fireproof-snapshot-saved'));
         }).catch(err => {
           console.error('[fireproof] failed to save:', err);
         });
