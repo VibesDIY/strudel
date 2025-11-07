@@ -36,7 +36,7 @@ import { getRandomTune, initCode, loadModules, shareCode } from './util.mjs';
 import './Repl.css';
 import { setInterval, clearInterval } from 'worker-timers';
 import { getMetadata } from '../metadata_parser';
-import { initHistory, saveVersion, formatTimestamp, isDuplicateSnapshot } from './fireproofHistory.js';
+import { initHistory, saveVersion, formatTimestamp, isDuplicateSnapshot, createTestSnapshot } from './fireproofHistory.js';
 import { setActiveFooter, setIsPanelOpened } from '../settings.mjs';
 
 const { latestCode, maxPolyphony, audioDeviceName, multiChannelOrbits } = settingsMap.get();
@@ -74,6 +74,8 @@ export function useReplContext() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       initHistory();
+      // Expose test function on window for debugging
+      window.createTestSnapshot = createTestSnapshot;
     }
   }, []);
 

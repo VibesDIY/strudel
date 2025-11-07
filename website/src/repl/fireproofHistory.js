@@ -242,3 +242,34 @@ export function formatTimestamp(timestamp) {
 
   return `${month}/${day} ${hours}:${mins}`;
 }
+
+/**
+ * Create a test snapshot by copying the first snapshot found and reversing its patternId
+ * @returns {Promise<object>} The created test snapshot
+ */
+export async function createTestSnapshot() {
+  if (!db) initHistory();
+
+  // Get the first snapshot we can find
+  const versions = await getRecentVersions(1);
+  if (versions.length === 0) {
+    console.log('[fireproof] No snapshots found to copy');
+    return null;
+  }
+
+  const original = versions[0];
+  console.log('[fireproof] Found snapshot:', original);
+
+  // Create a copy without _id and with reversed patternId
+  const copy = {
+    type: 'version',
+    code: original.code,
+    patternId: original.patternId ? original.patternId.split('').reverse().join('') : null,
+    timestamp: Date.now(),
+    preview: original.preview
+  };
+
+  const result = await db.put(copy);
+  console.log('[fireproof] Created test snapshot:', result.id, 'for pattern:', copy.patternId);
+  return { ...copy, _id: result.id };
+}
