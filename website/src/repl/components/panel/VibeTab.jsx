@@ -176,7 +176,7 @@ ${currentCode}`;
   };
 
   const handleKeyDown = (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleVibe();
     }
@@ -190,7 +190,7 @@ ${currentCode}`;
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Enter your prompt... (Ctrl+Enter to send)"
+          placeholder="Enter your prompt... (Enter to send)"
           disabled={loading}
           className="flex-1 px-3 py-2 bg-background border border-foreground border-opacity-20 rounded text-foreground placeholder-foreground placeholder-opacity-50 focus:outline-none focus:border-opacity-50"
         />
