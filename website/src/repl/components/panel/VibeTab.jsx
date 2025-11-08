@@ -105,19 +105,32 @@ export function VibeTab({ context }) {
 
       setSelection(selectedText);
 
-      // Build prompt
+      // Determine if this is a partial selection or full document
+      const isPartialSelection = selectionRange.from > 0 || selectionRange.to < (editor?.state.doc.length || 0);
+
+      // Build comprehensive prompt
       const userPrompt = `${STRUDEL_LLM_CONTEXT}${availableSounds}
 
 User request: ${prompt}
 
-Current name: ${currentName}
-Current code:
+Current groove name: ${currentName}
+
+Complete current code:
+\`\`\`js
 ${currentCode}
+\`\`\`
 
-Selected text to modify:
+${isPartialSelection ? `Selected region to modify (${selectionRange.from}-${selectionRange.to}):
+\`\`\`js
 ${selectedText}
+\`\`\`
 
-Provide a name for this groove (update based on the changes) and the replacement code for the selected region.`;
+IMPORTANT: You must provide replacement code that fits exactly in this selected region. The code you provide will replace only this selection, so it must work within the context of the surrounding code.` : `You are modifying the entire code.`}
+
+Provide:
+1. An updated name for this groove that reflects the changes
+2. The replacement code (only for the selected region${isPartialSelection ? '' : ' - the entire file'})
+3. A brief explanation of what you changed`;
 
       logger('[vibe] Calling AI...', 'highlight');
 
@@ -130,9 +143,9 @@ Provide a name for this groove (update based on the changes) and the replacement
         : undefined;
 
       const aiResponse = await callAI(userPrompt, {
-        model: "anthropic/claude-haiku-4.5",
+        model: "anthropic/claude-3.5-sonnet",
         temperature: 0.7,
-        max_tokens: 2000,
+        max_tokens: 4000,
         schema: {
           type: "object",
           properties: {
