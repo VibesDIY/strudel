@@ -143,7 +143,7 @@ Provide:
         : undefined;
 
       const aiResponse = await callAI(userPrompt, {
-        model: "anthropic/claude-3.5-sonnet",
+        model: "anthropic/claude-sonnet-4.5",
         temperature: 0.7,
         max_tokens: 4000,
         schema: {
