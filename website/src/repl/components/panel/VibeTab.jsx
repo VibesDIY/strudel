@@ -58,6 +58,7 @@ export function VibeTab({ context }) {
   const [prompt, setPrompt] = useState('');
   const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
+  const [selection, setSelection] = useState('');
 
   // Get available sounds
   const sounds = useStore(soundMap);
@@ -79,24 +80,68 @@ export function VibeTab({ context }) {
 
     setLoading(true);
     try {
+      const editor = context.editorRef.current?.editor;
       const currentCode = context.editorRef.current?.code || '';
 
-      const fullPrompt = `${STRUDEL_LLM_CONTEXT}${availableSounds}
+      // Get selection from CodeMirror
+      let selectedText = '';
+      let selectionRange = null;
+      if (editor) {
+        const state = editor.state;
+        const selection = state.selection.main;
+        if (!selection.empty) {
+          selectedText = state.doc.sliceString(selection.from, selection.to);
+          selectionRange = { from: selection.from, to: selection.to };
+        }
+      }
+
+      setSelection(selectedText);
+
+      // Build prompt based on whether there's a selection
+      let userPrompt;
+      if (selectedText) {
+        userPrompt = `${STRUDEL_LLM_CONTEXT}${availableSounds}
+
+User request: ${prompt}
+
+Current code:
+${currentCode}
+
+Selected text to modify:
+${selectedText}
+
+Please provide only the replacement text for the selected region.`;
+      } else {
+        userPrompt = `${STRUDEL_LLM_CONTEXT}${availableSounds}
 
 User request: ${prompt}
 
 Current code:
 ${currentCode}`;
+      }
 
       logger('[vibe] Calling AI...', 'highlight');
-      const aiResponse = await callAI(fullPrompt, {
+      const aiResponse = await callAI(userPrompt, {
         model: "anthropic/claude-3-opus",
         temperature: 0.7,
         max_tokens: 2000,
       });
 
       setResponse(aiResponse);
-      logger('[vibe] Response received', 'success');
+
+      // If there was a selection, replace it with the AI response
+      if (selectionRange && editor) {
+        editor.dispatch({
+          changes: {
+            from: selectionRange.from,
+            to: selectionRange.to,
+            insert: aiResponse
+          }
+        });
+        logger('[vibe] Selection replaced', 'success');
+      } else {
+        logger('[vibe] Response received', 'success');
+      }
     } catch (error) {
       console.error('[vibe] callAI error:', error);
       logger(`[vibe] Error: ${error.message}`, 'error');
@@ -133,6 +178,13 @@ ${currentCode}`;
           {loading ? 'vibing...' : 'vibe'}
         </button>
       </div>
+
+      {selection && (
+        <div className="bg-background p-3 rounded border border-foreground border-opacity-20">
+          <div className="text-xs opacity-50 mb-1">Selected text:</div>
+          <pre className="whitespace-pre-wrap text-sm font-mono">{selection}</pre>
+        </div>
+      )}
 
       {response && (
         <div className="flex-1 overflow-auto bg-background p-3 rounded border border-foreground border-opacity-20">
