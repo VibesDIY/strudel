@@ -87,7 +87,7 @@ export function VibeTab({ context }) {
       const nameMatch = currentCode.match(/^\/\/\s*(.+)$/m);
       const currentName = nameMatch ? nameMatch[1] : 'Untitled groove';
 
-      // Get selection from CodeMirror
+      // Get selection from CodeMirror, or use entire document if nothing selected
       let selectedText = '';
       let selectionRange = null;
       if (editor) {
@@ -96,15 +96,17 @@ export function VibeTab({ context }) {
         if (!selection.empty) {
           selectedText = state.doc.sliceString(selection.from, selection.to);
           selectionRange = { from: selection.from, to: selection.to };
+        } else {
+          // No selection - treat entire document as selected
+          selectedText = currentCode;
+          selectionRange = { from: 0, to: state.doc.length };
         }
       }
 
       setSelection(selectedText);
 
-      // Build prompt based on whether there's a selection
-      let userPrompt;
-      if (selectedText) {
-        userPrompt = `${STRUDEL_LLM_CONTEXT}${availableSounds}
+      // Build prompt
+      const userPrompt = `${STRUDEL_LLM_CONTEXT}${availableSounds}
 
 User request: ${prompt}
 
@@ -116,17 +118,6 @@ Selected text to modify:
 ${selectedText}
 
 Provide a name for this groove (update based on the changes) and the replacement code for the selected region.`;
-      } else {
-        userPrompt = `${STRUDEL_LLM_CONTEXT}${availableSounds}
-
-User request: ${prompt}
-
-Current name: ${currentName}
-Current code:
-${currentCode}
-
-Provide a name for this groove (update based on the changes) and the complete code.`;
-      }
 
       logger('[vibe] Calling AI...', 'highlight');
 
@@ -177,7 +168,7 @@ Provide a name for this groove (update based on the changes) and the complete co
       // Show explanation in sidebar
       setResponse(explanation || 'Changes applied');
 
-      // If there was a selection, replace it with the code
+      // Replace selection with the code and update name
       if (selectionRange && editor) {
         const state = editor.state;
 
@@ -220,24 +211,6 @@ Provide a name for this groove (update based on the changes) and the complete co
         }
 
         logger(`[vibe] "${name}" - ${explanation || 'Changes applied'}`, 'success');
-      } else {
-        // Replace entire file with name comment
-        const codeWithName = `// ${name}\n${code}`;
-        const state = editor.state;
-        editor.dispatch({
-          changes: {
-            from: 0,
-            to: state.doc.length,
-            insert: codeWithName
-          }
-        });
-
-        // Trigger evaluation
-        if (context.handleEvaluate) {
-          setTimeout(() => context.handleEvaluate(), 100);
-        }
-
-        logger(`[vibe] "${name}" - ${explanation || 'Code generated'}`, 'success');
       }
     } catch (error) {
       console.error('[vibe] callAI error:', error);
