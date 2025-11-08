@@ -121,10 +121,20 @@ ${currentCode}`;
       }
 
       logger('[vibe] Calling AI...', 'highlight');
+
+      // Check for API key (for local dev)
+      // Priority: localStorage > window global > import.meta.env
+      const apiKey = typeof window !== 'undefined'
+        ? localStorage.getItem('openrouter_api_key') ||
+          window.CALLAI_API_KEY ||
+          import.meta.env.PUBLIC_OPENROUTER_API_KEY
+        : undefined;
+
       const aiResponse = await callAI(userPrompt, {
-        model: "anthropic/claude-3-opus",
+        model: "anthropic/claude-haiku-4.5",
         temperature: 0.7,
         max_tokens: 2000,
+        ...(apiKey && { apiKey })
       });
 
       setResponse(aiResponse);
