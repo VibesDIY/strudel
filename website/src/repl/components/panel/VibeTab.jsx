@@ -83,6 +83,10 @@ export function VibeTab({ context }) {
       const editor = context.editorRef.current?.editor;
       const currentCode = context.editorRef.current?.code || '';
 
+      // Extract current name from first line if it exists
+      const nameMatch = currentCode.match(/^\/\/\s*(.+)$/m);
+      const currentName = nameMatch ? nameMatch[1] : 'Untitled groove';
+
       // Get selection from CodeMirror
       let selectedText = '';
       let selectionRange = null;
@@ -104,20 +108,24 @@ export function VibeTab({ context }) {
 
 User request: ${prompt}
 
+Current name: ${currentName}
 Current code:
 ${currentCode}
 
 Selected text to modify:
 ${selectedText}
 
-Please provide only the replacement text for the selected region.`;
+Provide a name for this groove (update based on the changes) and the replacement code for the selected region.`;
       } else {
         userPrompt = `${STRUDEL_LLM_CONTEXT}${availableSounds}
 
 User request: ${prompt}
 
+Current name: ${currentName}
 Current code:
-${currentCode}`;
+${currentCode}
+
+Provide a name for this groove (update based on the changes) and the complete code.`;
       }
 
       logger('[vibe] Calling AI...', 'highlight');
@@ -134,37 +142,102 @@ ${currentCode}`;
         model: "anthropic/claude-haiku-4.5",
         temperature: 0.7,
         max_tokens: 2000,
+        schema: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "A short, descriptive name for the groove"
+            },
+            code: {
+              type: "string",
+              description: "The JavaScript/Strudel code"
+            },
+            explanation: {
+              type: "string",
+              description: "Brief explanation of changes made"
+            }
+          },
+          required: ["name", "code"]
+        },
         ...(apiKey && { apiKey })
       });
 
-      // Show full response in sidebar
-      setResponse(aiResponse);
+      // Parse structured response
+      let responseData;
+      try {
+        responseData = typeof aiResponse === 'string' ? JSON.parse(aiResponse) : aiResponse;
+      } catch (e) {
+        // Fallback if not JSON
+        responseData = { name: currentName, code: aiResponse, explanation: '' };
+      }
 
-      // If there was a selection, extract just the code and replace it
+      const { name, code, explanation } = responseData;
+
+      // Show explanation in sidebar
+      setResponse(explanation || 'Changes applied');
+
+      // If there was a selection, replace it with the code
       if (selectionRange && editor) {
-        // Extract code from markdown code blocks
-        let codeToInsert = aiResponse;
-        const codeBlockMatch = aiResponse.match(/```(?:js|javascript)?\n([\s\S]*?)\n```/);
-        if (codeBlockMatch) {
-          codeToInsert = codeBlockMatch[1];
-        }
+        const state = editor.state;
 
-        editor.dispatch({
-          changes: {
+        // Find the first line (name comment)
+        const firstLineEnd = state.doc.lineAt(1).to;
+        const firstLineText = state.doc.sliceString(0, firstLineEnd);
+        const hasNameComment = firstLineText.match(/^\/\/\s*.+$/);
+
+        const changes = [
+          // Replace selection with new code
+          {
             from: selectionRange.from,
             to: selectionRange.to,
-            insert: codeToInsert
+            insert: code
           }
-        });
+        ];
+
+        // Update or add name comment at the beginning
+        if (hasNameComment) {
+          // Replace existing name comment
+          changes.push({
+            from: 0,
+            to: firstLineEnd,
+            insert: `// ${name}`
+          });
+        } else {
+          // Add name comment at the beginning
+          changes.push({
+            from: 0,
+            to: 0,
+            insert: `// ${name}\n`
+          });
+        }
+
+        editor.dispatch({ changes });
 
         // Trigger evaluation (same as Ctrl+Enter)
         if (context.handleEvaluate) {
           setTimeout(() => context.handleEvaluate(), 100);
         }
 
-        logger('[vibe] Selection replaced and evaluated', 'success');
+        logger(`[vibe] "${name}" - ${explanation || 'Changes applied'}`, 'success');
       } else {
-        logger('[vibe] Response received', 'success');
+        // Replace entire file with name comment
+        const codeWithName = `// ${name}\n${code}`;
+        const state = editor.state;
+        editor.dispatch({
+          changes: {
+            from: 0,
+            to: state.doc.length,
+            insert: codeWithName
+          }
+        });
+
+        // Trigger evaluation
+        if (context.handleEvaluate) {
+          setTimeout(() => context.handleEvaluate(), 100);
+        }
+
+        logger(`[vibe] "${name}" - ${explanation || 'Code generated'}`, 'success');
       }
     } catch (error) {
       console.error('[vibe] callAI error:', error);
