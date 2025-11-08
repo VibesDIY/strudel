@@ -156,7 +156,13 @@ ${currentCode}`;
             insert: codeToInsert
           }
         });
-        logger('[vibe] Selection replaced', 'success');
+
+        // Trigger evaluation (same as Ctrl+Enter)
+        if (context.handleEvaluate) {
+          setTimeout(() => context.handleEvaluate(), 100);
+        }
+
+        logger('[vibe] Selection replaced and evaluated', 'success');
       } else {
         logger('[vibe] Response received', 'success');
       }
