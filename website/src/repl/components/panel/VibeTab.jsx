@@ -137,15 +137,23 @@ ${currentCode}`;
         ...(apiKey && { apiKey })
       });
 
+      // Show full response in sidebar
       setResponse(aiResponse);
 
-      // If there was a selection, replace it with the AI response
+      // If there was a selection, extract just the code and replace it
       if (selectionRange && editor) {
+        // Extract code from markdown code blocks
+        let codeToInsert = aiResponse;
+        const codeBlockMatch = aiResponse.match(/```(?:js|javascript)?\n([\s\S]*?)\n```/);
+        if (codeBlockMatch) {
+          codeToInsert = codeBlockMatch[1];
+        }
+
         editor.dispatch({
           changes: {
             from: selectionRange.from,
             to: selectionRange.to,
-            insert: aiResponse
+            insert: codeToInsert
           }
         });
         logger('[vibe] Selection replaced', 'success');
