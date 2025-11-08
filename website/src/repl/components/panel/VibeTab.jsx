@@ -44,6 +44,13 @@ Patterns loop over **1 cycle** by default. Space separates events within a cycle
 - Space/time: \`.room(0..1)\` \`.delay(time)\`
 - Extras (examples): \`.phaser(n)\` \`.vib(n)\` \`.tremolo(n)\`
 
+### Text-to-speech
+- \`.speak(lang, voice)\` text-to-speech using Web Speech API
+- \`lang\`: language code (e.g., "en", "de", "fr")
+- \`voice\`: voice index (0-based, depends on browser voices)
+- Example: \`cat("hello", "world").speak("en", 0)\`
+- Can pattern parameters: \`.speak("en de".slow(2), "<0 1 2>")\`
+
 ### Example
 \`\`\`js
 stack(
