@@ -48,7 +48,9 @@ Patterns loop over **1 cycle** by default. Space separates events within a cycle
 - \`.speak(lang, voice)\` text-to-speech using Web Speech API
 - \`lang\`: language code (e.g., "en", "de", "fr")
 - \`voice\`: voice index (0-based, depends on browser voices)
-- Example: \`cat("hello", "world").speak("en", 0)\`
+- **IMPORTANT:** Audio effects (gain, room, echo, etc.) don't work with \`.speak()\`. Only use time methods (slow, fast, delay).
+- Example: \`cat("hello", "world").speak("en", 0).slow(2)\` ✓
+- Example: \`cat("hello", "world").gain(0.5).speak("en", 0)\` ✗ (don't mix audio effects with speak)
 - Can pattern parameters: \`.speak("en de".slow(2), "<0 1 2>")\`
 
 ### Example
