@@ -272,14 +272,14 @@ Provide:
       </div>
 
       {selection && (
-        <div className="bg-background p-3 rounded border border-foreground border-opacity-20">
+        <div className="max-h-32 overflow-auto bg-background p-3 rounded border border-foreground border-opacity-20">
           <div className="text-xs opacity-50 mb-1">Selected text:</div>
           <pre className="whitespace-pre-wrap text-sm font-mono">{selection}</pre>
         </div>
       )}
 
       {response && (
-        <div className="flex-1 overflow-auto bg-background p-3 rounded border border-foreground border-opacity-20">
+        <div className="flex-1 overflow-auto bg-background p-3 rounded border border-foreground border-opacity-20 min-h-0">
           <pre className="whitespace-pre-wrap text-sm font-mono">{response}</pre>
         </div>
       )}
