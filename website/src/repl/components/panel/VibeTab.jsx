@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { callAI } from 'use-vibes';
+import { callAI, useFireproof } from 'use-vibes';
 import { logger } from '@strudel/core';
 import { soundMap } from '@strudel/webaudio';
 import { useStore } from '@nanostores/react';
@@ -63,11 +63,34 @@ stack(
 \`\`\`
 `;
 
+// Helper to wait for login completion
+function waitForLogin() {
+  return new Promise((resolve) => {
+    if (document.body.classList.contains('vibes-connect-true')) {
+      resolve();
+      return;
+    }
+    const observer = new MutationObserver(() => {
+      if (document.body.classList.contains('vibes-connect-true')) {
+        observer.disconnect();
+        resolve();
+      }
+    });
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+  });
+}
+
 export function VibeTab({ context }) {
   const [prompt, setPrompt] = useState('');
   const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
   const [selection, setSelection] = useState('');
+
+  // Initialize Fireproof for auth
+  const { syncEnabled, enableSync } = useFireproof('strudel-history');
 
   // Get available sounds
   const sounds = useStore(soundMap);
@@ -85,6 +108,20 @@ export function VibeTab({ context }) {
     if (!prompt.trim()) {
       logger('[vibe] Please enter a prompt', 'warning');
       return;
+    }
+
+    // Check if user is logged in
+    if (!syncEnabled) {
+      logger('[vibe] Please log in to use AI features...', 'warning');
+      setResponse('Logging in...');
+
+      // Trigger login
+      enableSync();
+
+      // Wait for login to complete
+      await waitForLogin();
+
+      logger('[vibe] Login successful! Processing your request...', 'success');
     }
 
     setLoading(true);
@@ -252,19 +289,31 @@ Provide:
 
   return (
     <div className="px-4 flex gap-2 flex-col w-full h-full text-foreground overflow-hidden">
+      {!syncEnabled && (
+        <div className="mt-2 p-3 bg-background border border-foreground border-opacity-20 rounded">
+          <div className="text-xs opacity-70 mb-1">⚠️ Login required for AI features</div>
+          <button
+            onClick={enableSync}
+            className="text-sm px-3 py-1 hover:opacity-70 text-foreground border border-foreground border-opacity-20 rounded"
+          >
+            Login Now
+          </button>
+        </div>
+      )}
+
       <div className="flex gap-2 items-start pt-2">
         <input
           type="text"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Enter your prompt... (Enter to send)"
-          disabled={loading}
+          placeholder={syncEnabled ? "Enter your prompt... (Enter to send)" : "Login to use AI features"}
+          disabled={loading || !syncEnabled}
           className="flex-1 px-3 py-2 bg-background border border-foreground border-opacity-20 rounded text-foreground placeholder-foreground placeholder-opacity-50 focus:outline-none focus:border-opacity-50"
         />
         <button
           onClick={handleVibe}
-          disabled={loading}
+          disabled={loading || !syncEnabled}
           className="px-4 py-2 hover:opacity-50 disabled:opacity-30 text-foreground cursor-pointer disabled:cursor-not-allowed"
         >
           {loading ? 'vibing...' : 'vibe'}
