@@ -1,0 +1,740 @@
+# Strudel Music Engine - No-Code UI Builder Guide
+
+## What is Strudel?
+
+Strudel is a JavaScript port of TidalCycles - a powerful pattern-based music engine. You can build drum machines, sequencers, and music apps without writing pattern code by using its headless engine with your own UI.
+
+## Core Packages
+
+```javascript
+import { repl } from '@strudel/core';
+import { mini, s, note, stack } from '@strudel/core';
+import { samples } from 'superdough';
+import { initAudioOnFirstClick, getAudioContext, webaudioOutput } from '@strudel/webaudio';
+```
+
+## Setup Audio & Scheduler (Required First)
+
+```javascript
+// 1. Initialize audio on user interaction (click/touch)
+await initAudioOnFirstClick();
+const ctx = getAudioContext();
+
+// 2. Load samples (drums need this!)
+await samples('github:tidalcycles/dirt-samples');
+
+// 3. Create scheduler
+const { scheduler } = repl({
+  defaultOutput: webaudioOutput,
+  getTime: () => ctx.currentTime
+});
+```
+
+Audio must start from a user gesture due to browser autoplay policies. Samples must be loaded before drum sounds will work.
+
+## Playing Patterns
+
+Use the scheduler to play patterns:
+
+```javascript
+// Create pattern
+const pattern = mini('s("bd sd bd sd")');
+
+// Play it
+scheduler.setPattern(pattern, true); // true = autostart
+
+// Or start manually
+scheduler.setPattern(pattern);
+scheduler.start();
+
+// Stop
+scheduler.stop();
+```
+
+## Grid → Pattern Conversion
+
+For a grid-based drum machine, convert button states to mini notation:
+
+### 16-step grid example:
+```javascript
+// Grid: [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]
+// Convert to: "bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~"
+
+function gridToPattern(grid, sound = 'bd') {
+  const pattern = grid.map(step => step ? sound : '~').join(' ');
+  return mini(`s("${pattern}")`);
+}
+
+// Multi-track
+function tracksToPattern(tracks) {
+  // tracks = { bd: [1,0,1,0], sd: [0,1,0,1], hh: [1,1,1,1] }
+  const patterns = Object.entries(tracks).map(([sound, grid]) =>
+    gridToPattern(grid, sound)
+  );
+  return stack(...patterns); // Play simultaneously
+}
+```
+
+## Pattern Playback
+
+```javascript
+// Update pattern while playing
+function playPattern(pattern) {
+  scheduler.setPattern(pattern, true); // true = autostart
+}
+
+function stopPattern() {
+  scheduler.stop();
+}
+```
+
+## Common Sounds
+
+Available drum sounds (use with `s()`):
+- `bd` - bass drum
+- `sd` - snare drum
+- `hh` - hi-hat
+- `cp` - clap
+- `rim` - rim shot
+- `perc` - percussion
+
+Synths:
+- `sawtooth`, `square`, `sine`, `triangle`
+
+Use `note()` for pitched sounds:
+```javascript
+mini('note("c4 d4 e4 g4").s("sawtooth")')
+```
+
+## Pattern Structure
+
+**Mini notation syntax:**
+- Space = sequence events: `"bd sd"` (kick then snare)
+- `~` = rest: `"bd ~ sd ~"`
+- `*n` = repeat: `"bd*4"` (4 kicks)
+- `/n` = slow down: `"bd/2"` (kick every 2 cycles)
+- `[]` = subdivide: `"bd [sd sd]"` (kick, then two snares)
+- `,` = layer/stack: `"bd, hh*4"` (kick and 4 hi-hats together)
+- `<>` = alternate: `"<bd sd>"` (kick first cycle, snare second)
+
+## Building a Simple Drum Machine
+
+```javascript
+// 1. Initialize on page load
+let scheduler = null;
+
+document.querySelector('#playBtn').onclick = async () => {
+  // Initialize audio & scheduler once
+  if (!scheduler) {
+    await initAudioOnFirstClick();
+    const ctx = getAudioContext();
+    await samples('github:tidalcycles/dirt-samples');
+
+    const replInstance = repl({
+      defaultOutput: webaudioOutput,
+      getTime: () => ctx.currentTime
+    });
+    scheduler = replInstance.scheduler;
+  }
+
+  // 2. Get grid state from UI
+  const kickGrid = getGridState('kick-row'); // [1,0,1,0,...]
+  const snareGrid = getGridState('snare-row');
+  const hhGrid = getGridState('hh-row');
+
+  // 3. Convert to pattern
+  const kickPattern = mini(`s("${gridToMini(kickGrid, 'bd')}")`);
+  const snarePattern = mini(`s("${gridToMini(snareGrid, 'sd')}")`);
+  const hhPattern = mini(`s("${gridToMini(hhGrid, 'hh')}")`);
+
+  // 4. Stack and play
+  const pattern = stack(kickPattern, snarePattern, hhPattern);
+  scheduler.setPattern(pattern, true); // true = autostart
+};
+
+document.querySelector('#stopBtn').onclick = () => {
+  if (scheduler) scheduler.stop();
+};
+
+function gridToMini(grid, sound) {
+  return grid.map(on => on ? sound : '~').join(' ');
+}
+```
+
+## Common Patterns
+
+8-step basic beat:
+```javascript
+mini('s("bd ~ sd ~ bd ~ sd ~")') // 4-on-floor with backbeat
+```
+
+16-step with hi-hats:
+```javascript
+stack(
+  mini('s("bd ~ ~ ~ sd ~ ~ ~")'),
+  mini('s("hh*8")') // 8 hi-hats (double-time)
+)
+```
+
+## Pattern Parameters
+
+Add effects by chaining methods:
+
+```javascript
+mini('s("bd sd")')
+  .gain(0.8)           // Volume
+  .speed(1.2)          // Playback speed
+  .lpf(1000)           // Low-pass filter
+  .room(0.5)           // Reverb
+  .delay(0.25)         // Echo
+```
+
+## Tips for UI → Pattern Generation
+
+1. **Grid resolution**: Use powers of 2 (8, 16, 32 steps)
+2. **Timing**: Patterns loop every 1 cycle by default
+3. **Swing**: Add `.swing(0.6)` for groove
+4. **BPM**: Use `.cpm(120)` for 120 BPM (cycles per minute)
+5. **Live updates**: Call `.stop()` on old pattern before playing new one
+
+## Example: 8-step Grid Sequencer
+
+```javascript
+// HTML: 8 buttons per row, 3 rows
+// <div id="bd-row"><button>...</button> x8</div>
+// <div id="sd-row"><button>...</button> x8</div>
+// <div id="hh-row"><button>...</button> x8</div>
+
+let scheduler = null;
+let playing = false;
+
+async function togglePlay() {
+  if (!playing) {
+    // Initialize once
+    if (!scheduler) {
+      await initAudioOnFirstClick();
+      const ctx = getAudioContext();
+      await samples('github:tidalcycles/dirt-samples');
+
+      const replInstance = repl({
+        defaultOutput: webaudioOutput,
+        getTime: () => ctx.currentTime
+      });
+      scheduler = replInstance.scheduler;
+    }
+    updatePattern();
+    playing = true;
+  } else {
+    scheduler.stop();
+    playing = false;
+  }
+}
+
+function updatePattern() {
+  const tracks = {
+    bd: getRowState('bd-row'),
+    sd: getRowState('sd-row'),
+    hh: getRowState('hh-row')
+  };
+
+  const patterns = Object.entries(tracks).map(([sound, grid]) => {
+    const miniStr = grid.map(on => on ? sound : '~').join(' ');
+    return mini(`s("${miniStr}")`);
+  });
+
+  const pattern = stack(...patterns).cpm(120);
+  scheduler.setPattern(pattern, playing); // Only autostart if already playing
+}
+
+function getRowState(rowId) {
+  return Array.from(
+    document.querySelectorAll(`#${rowId} button`)
+  ).map(btn => btn.classList.contains('active'));
+}
+
+// Call updatePattern() whenever grid buttons are clicked
+```
+
+## Stack vs Sequential
+
+- `stack(a, b)` - Play simultaneously (polyphony)
+- `cat(a, b)` - Play one after another (sequence across cycles)
+- `seq(a, b)` - Sequence within one cycle
+
+## Performance Tips
+
+1. Initialize scheduler only once (check if it exists before creating)
+2. Reuse patterns when possible (don't recreate on every frame)
+3. Use `scheduler.setPattern()` to update - it handles cleanup automatically
+4. Use `.fast()` / `.slow()` to change tempo without recreating pattern
+5. Patterns are immutable - chaining creates new patterns
+6. Sample loading is async - await it before playing patterns
+
+## Error Handling & Troubleshooting
+
+### Pattern Errors
+```javascript
+try {
+  const pattern = mini(userInput);
+  scheduler.setPattern(pattern, true);
+} catch (error) {
+  console.error('Invalid pattern:', error);
+  // Show error to user
+}
+```
+
+### Initialization Errors - "Failed to load audio engine"
+
+If initialization fails, check EACH step individually:
+
+```javascript
+async function initializeAudio() {
+  try {
+    console.log('Step 1: Importing modules...');
+    const { repl, mini, stack } = await import('@strudel/core');
+    const { samples } = await import('superdough');
+    const { initAudioOnFirstClick, getAudioContext, webaudioOutput } = await import('@strudel/webaudio');
+    console.log('✓ Modules imported');
+
+    console.log('Step 2: Initializing audio context...');
+    await initAudioOnFirstClick();
+    const ctx = getAudioContext();
+    console.log('✓ Audio context:', ctx.state);
+
+    console.log('Step 3: Loading samples (this can take 10-30 seconds)...');
+    await samples('github:tidalcycles/dirt-samples');
+    console.log('✓ Samples loaded');
+
+    console.log('Step 4: Creating scheduler...');
+    const { scheduler } = repl({
+      defaultOutput: webaudioOutput,
+      getTime: () => ctx.currentTime
+    });
+    console.log('✓ Scheduler created');
+
+    return { scheduler, mini, stack };
+  } catch (error) {
+    console.error('FAILED at:', error.message);
+    console.error('Full error:', error);
+    throw error; // Re-throw to see full stack trace
+  }
+}
+```
+
+### Common Issues:
+
+**1. "Cannot find module" - Dynamic import failure**
+- **Vite**: Add to `vite.config.js`:
+  ```javascript
+  export default {
+    optimizeDeps: {
+      include: ['@strudel/core', '@strudel/webaudio', 'superdough']
+    }
+  }
+  ```
+- **Webpack**: Ensure tree-shaking doesn't remove Strudel modules
+- **Next.js**: Add to `next.config.js`:
+  ```javascript
+  transpilePackages: ['@strudel/core', '@strudel/webaudio', 'superdough']
+  ```
+
+**2. "Failed to fetch" during sample loading**
+- GitHub rate limiting (common!) - samples() fetches from GitHub
+- Use CDN instead: `await samples('https://cdn.jsdelivr.net/gh/tidalcycles/Dirt-Samples@master/strudel.json')`
+- Or skip samples and use synths only (no drum sounds):
+  ```javascript
+  // Skip samples - only synths work
+  const pattern = note("c3 eb3 g3").s("sawtooth");
+  ```
+
+**3. "Audio context suspended"**
+- Must call from user interaction (click/touch)
+- Check with: `console.log(audioContext.state)` (should be "running")
+- Resume manually: `await audioContext.resume()`
+
+**4. Samples load but no sound**
+- Check browser console for Web Audio errors
+- Verify pattern syntax: must use `s("bd sd")` not just `"bd sd"`
+- Ensure scheduler is started: `scheduler.start()`
+
+**5. "AudioWorklet not supported"**
+- Requires HTTPS or localhost (not HTTP)
+- Some browsers don't support AudioWorklet - check: `'audioWorklet' in AudioContext.prototype`
+
+## React Integration - Common Pitfall ⚠️
+
+**CRITICAL:** React state updates are asynchronous. This causes a common bug where patterns load but don't play:
+
+### ❌ WRONG - Pattern loads silently (no sound):
+```javascript
+const [isPlaying, setIsPlaying] = useState(false);
+
+const togglePlay = () => {
+  if (!isPlaying) {
+    updatePattern();           // isPlaying is still FALSE here
+    setIsPlaying(true);        // State update happens AFTER function returns
+  }
+}
+
+const updatePattern = () => {
+  const pattern = /* ... build pattern ... */;
+  scheduler.setPattern(pattern, isPlaying);  // isPlaying = false! Silent load.
+}
+```
+
+### ✅ CORRECT - Explicit start after loading:
+```javascript
+const togglePlay = () => {
+  if (!isPlaying) {
+    updatePattern();
+    scheduler.start();         // Explicitly start the scheduler
+    setIsPlaying(true);
+  } else {
+    scheduler.stop();
+    setIsPlaying(false);
+  }
+}
+
+const updatePattern = () => {
+  const pattern = /* ... build pattern ... */;
+  scheduler.setPattern(pattern);  // Load without autostart
+  // Caller handles start/stop
+}
+```
+
+### Alternative - Use refs instead of state for playback:
+```javascript
+const isPlayingRef = useRef(false);
+
+const updatePattern = () => {
+  const pattern = /* ... build pattern ... */;
+  scheduler.setPattern(pattern, isPlayingRef.current);  // Ref has current value
+}
+
+const togglePlay = () => {
+  if (!isPlayingRef.current) {
+    isPlayingRef.current = true;
+    updatePattern();  // Now isPlayingRef.current is already true
+  } else {
+    isPlayingRef.current = false;
+    scheduler.stop();
+  }
+}
+```
+
+### Key Points for React:
+1. **Don't rely on state in the same function that updates it** - use `scheduler.start()` explicitly
+2. **Or use refs for immediate values** - `useRef()` doesn't have closure issues
+3. **Keep scheduler in a ref** - `schedulerRef.current` not state
+4. **Load patterns separately from playback control** - decouple `setPattern()` from `start()`
+
+## Next Steps
+
+- Add tempo slider (use `.cpm(bpm)`)
+- Add swing control (use `.swing(amount)`)
+- Add per-step velocity (use `.gain(pattern)`)
+- Add effects controls (map to `.lpf()`, `.room()`, etc.)
+- Save/load patterns (serialize grid state to JSON)
+
+---
+
+This is all you need to build a working drum machine UI with Strudel's engine. The scheduler handles all timing and audio - you just convert UI state to mini notation strings and call `scheduler.setPattern()`.
+
+## Key Differences from REPL
+
+This guide is for **headless** usage with programmatic patterns. If you're building a full REPL/code editor, see Appendix A below. The main differences:
+- Load samples with `await samples('github:tidalcycles/dirt-samples')`
+- No `.play()` method - use `scheduler.setPattern(pattern, autostart)`
+- Scheduler manages playback lifecycle (start/stop/tempo)
+- Import from `@strudel/core`, `@strudel/webaudio`, and `superdough`
+
+---
+
+# Appendix A: Building a Code-Based REPL
+
+If you want users to **write Strudel code** (like the official REPL), you need the transpiler to evaluate code strings.
+
+## Additional Packages
+
+```javascript
+import { transpiler, evaluate } from '@strudel/transpiler';
+import { initAudioOnFirstClick, getAudioContext, webaudioOutput } from '@strudel/webaudio';
+import { samples } from 'superdough';
+```
+
+## Setup REPL Environment
+
+```javascript
+let repl = null;
+
+async function initializeREPL() {
+  // 1. Audio setup
+  await initAudioOnFirstClick();
+  const ctx = getAudioContext();
+  await samples('github:tidalcycles/dirt-samples');
+
+  // 2. Create REPL with all Strudel functions
+  const { repl: createRepl } = await import('@strudel/core');
+
+  repl = createRepl({
+    defaultOutput: webaudioOutput,
+    getTime: () => ctx.currentTime,
+    transpiler, // Enable code parsing
+  });
+
+  return repl;
+}
+```
+
+## Evaluating User Code
+
+```javascript
+async function evaluateCode(codeString) {
+  if (!repl) {
+    await initializeREPL();
+  }
+
+  try {
+    // Evaluate returns { pattern, code } or throws
+    const result = await repl.evaluate(codeString);
+
+    // The pattern is automatically set and started
+    console.log('Pattern loaded:', result.code);
+
+    return { success: true, result };
+  } catch (error) {
+    console.error('Evaluation error:', error);
+    return {
+      success: false,
+      error: error.message,
+      line: error.line, // If syntax error
+      column: error.column
+    };
+  }
+}
+```
+
+## Example: Simple Code Editor
+
+```javascript
+const editor = document.querySelector('#code-editor');
+const playBtn = document.querySelector('#play-btn');
+const stopBtn = document.querySelector('#stop-btn');
+const errorDisplay = document.querySelector('#errors');
+
+playBtn.addEventListener('click', async () => {
+  const code = editor.value;
+  errorDisplay.textContent = '';
+
+  const result = await evaluateCode(code);
+
+  if (!result.success) {
+    errorDisplay.textContent = `Error: ${result.error}`;
+    if (result.line) {
+      errorDisplay.textContent += ` (line ${result.line})`;
+    }
+  }
+});
+
+stopBtn.addEventListener('click', () => {
+  if (repl?.scheduler) {
+    repl.scheduler.stop();
+  }
+});
+
+// Example patterns users can write:
+const exampleCode = `
+// Simple drum pattern
+s("bd sd hh sd").gain(0.8)
+
+// Layered pattern with synth
+stack(
+  s("bd*4"),
+  note("<c3 eb3 g3 bb3>").s("sawtooth").lpf(800)
+)
+
+// With effects
+note("c4 d4 e4 g4")
+  .s("piano")
+  .room(0.5)
+  .delay(0.25)
+  .slow(2)
+`;
+```
+
+## Using the Transpiler Directly
+
+For more control, use the transpiler separately:
+
+```javascript
+import { transpiler } from '@strudel/transpiler';
+
+function transpileOnly(code) {
+  try {
+    // Transpiles Strudel code to JavaScript
+    const jsCode = transpiler(code);
+    console.log('Transpiled:', jsCode);
+    return jsCode;
+  } catch (error) {
+    console.error('Transpile error:', error);
+    throw error;
+  }
+}
+
+// Then evaluate manually
+async function evaluateManually(strudelCode) {
+  const jsCode = transpileOnly(strudelCode);
+
+  // Create evaluation context with all Strudel functions
+  const { Pattern, stack, s, note, mini } = await import('@strudel/core');
+
+  // Eval with context (use Function constructor, not eval())
+  const pattern = new Function(
+    'Pattern', 'stack', 's', 'note', 'mini',
+    `return ${jsCode}`
+  )(Pattern, stack, s, note, mini);
+
+  repl.scheduler.setPattern(pattern, true);
+}
+```
+
+## What Transpiler Does
+
+Converts Strudel mini notation to JavaScript:
+
+```javascript
+// INPUT (Strudel code):
+s("bd sd hh sd")
+
+// OUTPUT (JavaScript):
+s(mini("bd sd hh sd"))
+```
+
+```javascript
+// INPUT:
+note("<c3 eb3>").s("sawtooth")
+
+// OUTPUT:
+note(mini("<c3 eb3>")).s(mini("sawtooth"))
+```
+
+The transpiler wraps all strings in `mini()` calls automatically.
+
+## Full REPL Example
+
+```javascript
+import { repl } from '@strudel/core';
+import { transpiler } from '@strudel/transpiler';
+import { samples } from 'superdough';
+import { initAudioOnFirstClick, getAudioContext, webaudioOutput } from '@strudel/webaudio';
+
+class StrudelREPL {
+  constructor() {
+    this.repl = null;
+    this.initialized = false;
+  }
+
+  async init() {
+    if (this.initialized) return;
+
+    await initAudioOnFirstClick();
+    const ctx = getAudioContext();
+    await samples('github:tidalcycles/dirt-samples');
+
+    this.repl = repl({
+      defaultOutput: webaudioOutput,
+      getTime: () => ctx.currentTime,
+      transpiler,
+    });
+
+    this.initialized = true;
+  }
+
+  async evaluate(code) {
+    if (!this.initialized) await this.init();
+    return await this.repl.evaluate(code);
+  }
+
+  start() {
+    this.repl?.scheduler.start();
+  }
+
+  stop() {
+    this.repl?.scheduler.stop();
+  }
+
+  isPlaying() {
+    return this.repl?.scheduler.started || false;
+  }
+}
+
+// Usage
+const strudelRepl = new StrudelREPL();
+
+document.querySelector('#eval-btn').onclick = async () => {
+  const code = document.querySelector('#editor').value;
+  try {
+    await strudelRepl.evaluate(code);
+  } catch (error) {
+    console.error('Failed:', error);
+  }
+};
+```
+
+## Advanced: Code Editor with Syntax Highlighting
+
+For a full-featured editor, combine with CodeMirror:
+
+```javascript
+import { EditorView, basicSetup } from 'codemirror';
+import { javascript } from '@codemirror/lang-javascript';
+
+const editor = new EditorView({
+  doc: 's("bd sd hh sd")',
+  extensions: [
+    basicSetup,
+    javascript(),
+    // Add Ctrl+Enter to evaluate
+    EditorView.domEventHandlers({
+      keydown: (event, view) => {
+        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+          evaluateCode(view.state.doc.toString());
+          return true;
+        }
+      }
+    })
+  ],
+  parent: document.querySelector('#editor-container')
+});
+```
+
+## Differences from Grid UI (Main Guide)
+
+| Feature | Grid UI | Code REPL |
+|---------|---------|-----------|
+| User input | Button clicks | Text editor |
+| Pattern creation | `gridToPattern()` | `repl.evaluate()` |
+| Transpiler | Not needed | Required |
+| Complexity | Simple | Advanced |
+| Flexibility | Limited to UI | Full Strudel syntax |
+| Error handling | Grid always valid | Parse/runtime errors |
+
+## When to Use Each
+
+**Grid UI** (main guide):
+- Beginner-friendly interface
+- Mobile-friendly touch input
+- Constrained musical space (good for learning)
+- No coding required
+
+**Code REPL** (this appendix):
+- Power users / live coders
+- Full Strudel language features
+- Complex patterns and functions
+- Educational coding environments
+
+Most apps should **start with the grid UI** from the main guide, then add code mode as an advanced feature.
+
+---
+
+*End of Appendix A*
