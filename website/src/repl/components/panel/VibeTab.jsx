@@ -127,7 +127,22 @@ export function VibeTab({ context }) {
     setLoading(true);
     try {
       const editor = context.editorRef.current?.editor;
-      const currentCode = context.editorRef.current?.code || '';
+      let currentCode = context.editorRef.current?.code || '';
+
+      // If file is empty, add a default comment
+      if (!currentCode.trim()) {
+        currentCode = '// new pattern';
+        // Update editor with the default comment
+        if (editor) {
+          editor.dispatch({
+            changes: {
+              from: 0,
+              to: editor.state.doc.length,
+              insert: currentCode
+            }
+          });
+        }
+      }
 
       // Extract current name from first line if it exists
       const nameMatch = currentCode.match(/^\/\/\s*(.+)$/m);
