@@ -166,7 +166,9 @@
       color: #7ec8e3;
       padding: 8px;
       white-space: nowrap;
+      cursor: pointer;
     }
+    #balance:hover { text-decoration: underline; }
     #balance.low { color: #e94560; }
     #balance.loading { color: #666; }
     #vibeResponse {
@@ -780,6 +782,23 @@ Return JSON with: name (short groove name), code (the replacement code only), ex
       if (e.key === 'Enter') {
         e.preventDefault();
         document.getElementById('vibe').click();
+      }
+    });
+
+    // Click balance to copy shareable URL with key
+    document.getElementById('balance').addEventListener('click', async () => {
+      const apiKey = localStorage.getItem('openrouter_api_key');
+      if (!apiKey) return;
+
+      const url = `${window.location.origin}${window.location.pathname}#key=${apiKey}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        const balanceEl = document.getElementById('balance');
+        const original = balanceEl.textContent;
+        balanceEl.textContent = '✓ copied!';
+        setTimeout(() => { balanceEl.textContent = original; }, 1500);
+      } catch (err) {
+        console.error('[copy] Error:', err);
       }
     });
 
