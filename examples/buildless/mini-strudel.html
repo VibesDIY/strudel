@@ -167,7 +167,7 @@ stack(
       .room(0.3)
   ),
   // bass
-  note("g1 ~ g1 g1 ~ g1 g1 ~")
+  note("g1 ~ d1 g1 ~ bb1 g1 ~")
     .sound("sawtooth")
     .lpf(400).lpq(4)
     .decay(0.15).sustain(0),
@@ -179,13 +179,13 @@ stack(
     .decay(0.3).sustain(0.2).release(0.5)
     .gain(0.4),
   // lead
-  note("g3 bb3 d4 g4 d4 bb3 g3 d3").euclid(5,8)
+  note("g3 bb3 d4 g4 d4 bb3 g3 d3").euclid(isaw.range(3,7).slow(4).floor(), 8)
     .s("gm_electric_guitar_muted")
     .gain(0.85)
     .room(0.45)
     .release(0.25)
     .lpf(2000)
-)._pianoroll({ labels: 1 })
+)._pianoroll({ labels: 1, cycles: 4 })._scope({ pos: 0.5 })
 -->
     </strudel-editor>
     <div id="status">Loading Strudel...</div>
@@ -206,6 +206,7 @@ stack(
     const waitForEditor = setInterval(() => {
       if (editorEl.editor) {
         editorInstance = editorEl.editor;
+        editorInstance.setAutocompletionEnabled(true);
         clearInterval(waitForEditor);
         document.getElementById('status').textContent = 'Ready - Ctrl+Enter to play, Ctrl+S to save';
       }
