@@ -310,13 +310,52 @@ stack(
     await customElements.whenDefined('strudel-editor');
     const editorEl = document.getElementById('editor');
 
+    // Default song
+    const DEFAULT_SONG = `// Fireproof Drive
+stack(
+  // drums
+  stack(
+    s("bd ~ bd ~, ~ sd ~ sd").bank("RolandTR909").gain(0.2),
+    s("hh*16").degradeBy(0.3)
+      .gain(rand.range(0.1, 0.25))
+      .bank("RolandTR909")
+      .ribbon(42, 1)
+      .room(0.3)
+  ),
+  // bass
+  note("g1 ~ d1 g1 ~ bb1 g1 ~")
+    .sound("sawtooth")
+    .lpf(400).lpq(4)
+    .decay(0.15).sustain(0),
+  // chords
+  chord("<Gm7 Cm7 Dm7 Cm7>/2")
+    .voicing()
+    .sound("sawtooth")
+    .lpf(sine.range(600, 1800).slow(8))
+    .decay(0.3).sustain(0.2).release(0.5)
+    .gain(0.4),
+  // lead
+  note("g3 bb3 d4 g4 d4 bb3 g3 d3").euclid(isaw.range(3,7).slow(4).floor(), 8)
+    .s("gm_electric_guitar_muted")
+    .gain(0.85)
+    .room(0.45)
+    .release(0.25)
+    .lpf(2000)
+)._pianoroll({ labels: 1, cycles: 4 })._scope({ pos: 0.5 })`;
+
     // Get editor instance once it's ready
     const waitForEditor = setInterval(() => {
       if (editorEl.editor) {
         editorInstance = editorEl.editor;
         editorInstance.setAutocompletionEnabled(true);
         clearInterval(waitForEditor);
-        document.getElementById('status').textContent = 'Ready - Ctrl+Enter to play, Ctrl+S to save';
+        // Set default song after a delay to ensure editor is fully ready
+        setTimeout(() => {
+          if (!editorInstance.code || editorInstance.code.trim() === '') {
+            editorInstance.setCode(DEFAULT_SONG);
+          }
+          document.getElementById('status').textContent = 'Ready - Ctrl+Enter to play, Ctrl+S to save';
+        }, 200);
       }
     }, 100);
 
