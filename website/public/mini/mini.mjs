@@ -133,6 +133,12 @@ async function updateBalance() {
       const usage = data.data?.usage || 0;
       balanceEl.textContent = `used $${usage.toFixed(2)}`;
       balanceEl.className = '';
+    } else if (remaining < 0.02) {
+      // Key exhausted - delete it
+      localStorage.removeItem('openrouter_api_key');
+      balanceEl.textContent = '';
+      updateKeyUI();
+      document.getElementById('status').textContent = 'API key expired (< $0.02 remaining)';
     } else {
       balanceEl.textContent = `$${remaining.toFixed(2)}`;
       balanceEl.className = remaining < 1 ? 'low' : '';
