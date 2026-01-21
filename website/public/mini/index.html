@@ -161,6 +161,14 @@
       opacity: 0.5;
       cursor: not-allowed;
     }
+    #balance {
+      font-size: 11px;
+      color: #7ec8e3;
+      padding: 8px;
+      white-space: nowrap;
+    }
+    #balance.low { color: #e94560; }
+    #balance.loading { color: #666; }
     #vibeResponse {
       padding: 10px;
       background: #16213e;
@@ -189,6 +197,7 @@
       <input id="apiKeyInput" type="password" placeholder="paste OpenRouter API key..." />
       <input id="vibePrompt" type="text" placeholder="describe changes... (Enter to send)" style="display:none" />
       <button id="vibe">🔑 Save Key</button>
+      <span id="balance"></span>
     </div>
     <strudel-editor id="editor" sync latency="0.2">
 <!--
@@ -298,10 +307,49 @@ stack(
       document.getElementById('apiKeyInput').style.display = hasKey ? 'none' : 'block';
       document.getElementById('vibePrompt').style.display = hasKey ? 'block' : 'none';
       document.getElementById('vibe').textContent = hasKey ? '✨ Vibe' : '🔑 Save Key';
+      document.getElementById('balance').style.display = hasKey ? 'inline' : 'none';
+    }
+
+    // Fetch and display OpenRouter credits balance
+    async function updateBalance() {
+      const apiKey = localStorage.getItem('openrouter_api_key');
+      const balanceEl = document.getElementById('balance');
+      if (!apiKey) {
+        balanceEl.textContent = '';
+        return;
+      }
+
+      balanceEl.textContent = '...';
+      balanceEl.className = 'loading';
+
+      try {
+        const response = await fetch('https://openrouter.ai/api/v1/credits', {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+
+        if (!response.ok) {
+          balanceEl.textContent = response.status === 401 ? '⚠️ invalid key' : '⚠️ error';
+          balanceEl.className = 'low';
+          return;
+        }
+
+        const data = await response.json();
+        const remaining = (data.data?.total_credits || 0) - (data.data?.total_usage || 0);
+        const formatted = remaining.toFixed(2);
+        balanceEl.textContent = `$${formatted}`;
+        balanceEl.className = remaining < 1 ? 'low' : '';
+      } catch (err) {
+        console.error('[balance] Error:', err);
+        balanceEl.textContent = '⚠️ error';
+        balanceEl.className = 'low';
+      }
     }
 
     // Initialize API key from hash
     initApiKey();
+
+    // Fetch initial balance
+    updateBalance();
 
     const db = fireproof('mini-strudel');
     let currentSongId = null;
@@ -528,6 +576,9 @@ Return JSON with: name (short groove name), code (the replacement code only), ex
           setTimeout(() => {
             document.dispatchEvent(new CustomEvent('repl-evaluate'));
           }, 100);
+
+          // Update balance after successful vibe
+          updateBalance();
         }
       } catch (err) {
         console.error('[vibe] Error:', err);
@@ -700,6 +751,7 @@ Return JSON with: name (short groove name), code (the replacement code only), ex
           localStorage.setItem('openrouter_api_key', key);
           document.getElementById('apiKeyInput').value = '';
           updateKeyUI();
+          updateBalance();
           document.getElementById('status').textContent = 'API key saved! Enter a prompt to vibe.';
         }
       } else {
