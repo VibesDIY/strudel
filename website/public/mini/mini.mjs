@@ -500,6 +500,10 @@ document.getElementById('newSong').onclick = () => {
   document.getElementById('status').textContent = 'New song - Ctrl+S to save';
 };
 
+document.getElementById('save').onclick = () => {
+  savePattern();
+};
+
 // Ctrl+S to save
 document.addEventListener('keydown', async (e) => {
   if (e.ctrlKey && e.key === 's') {
