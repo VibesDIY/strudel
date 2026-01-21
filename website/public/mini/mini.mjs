@@ -158,6 +158,7 @@ updateBalance();
 
 const db = fireproof('mini-strudel');
 let currentSongId = null;
+let currentPatternId = null;
 let editorInstance = null;
 
 // Wait for strudel-editor to be ready
@@ -381,6 +382,7 @@ async function savePattern() {
   if (currentSongId === null) {
     currentSongId = result.id;
   }
+  currentPatternId = result.id;
 
   document.getElementById('status').textContent = `Saved! (${formatTime(Date.now())})`;
   await renderSidebar();
@@ -441,7 +443,7 @@ async function renderSidebar() {
     group.className = 'song-group';
 
     const header = document.createElement('div');
-    header.className = 'song-header' + (isActive ? ' active' : '');
+    header.className = 'song-header';
     header.innerHTML = `
       <span class="song-title">${song.root?.preview || 'Song'}</span>
       <span class="song-count">${allPatterns.length}</span>
@@ -456,7 +458,7 @@ async function renderSidebar() {
 
     allPatterns.forEach(p => {
       const item = document.createElement('div');
-      item.className = 'pattern-item' + (currentSongId === songId ? '' : '');
+      item.className = 'pattern-item' + (currentPatternId === p._id ? ' active' : '');
       item.innerHTML = `
         <div class="pattern-preview">${p.preview}</div>
         <div class="pattern-time">${formatTime(p.timestamp)}</div>
@@ -472,6 +474,7 @@ async function renderSidebar() {
         e.stopPropagation();
         setEditorCode(p.code);
         currentSongId = p.songId === null ? p._id : p.songId;
+        currentPatternId = p._id;
         renderSidebar();
         // Auto-play the loaded pattern
         setTimeout(() => {

@@ -44,7 +44,6 @@ body {
   align-items: center;
 }
 .song-header:hover { background: #0f3460; }
-.song-header.active { border-left: 3px solid #e94560; }
 .song-title {
   font-size: 12px;
   white-space: nowrap;
@@ -69,7 +68,7 @@ body {
   position: relative;
 }
 .pattern-item:hover { background: #0f3460; }
-.pattern-item.active { background: #e94560; }
+.pattern-item.active { border-left: 3px solid #e94560; padding-left: 17px; }
 .pattern-delete {
   position: absolute;
   right: 8px;
