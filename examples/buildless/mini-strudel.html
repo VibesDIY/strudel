@@ -138,6 +138,40 @@
       font-size: 12px;
       color: #888;
     }
+
+    /* Vibe UI */
+    #apiKeyInput, #vibePrompt {
+      flex: 1;
+      padding: 8px 12px;
+      background: #0f3460;
+      border: 1px solid #1a1a2e;
+      color: #eee;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    #apiKeyInput::placeholder, #vibePrompt::placeholder {
+      color: #666;
+    }
+    #vibe {
+      background: #e94560;
+      white-space: nowrap;
+    }
+    #vibe:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    #vibeResponse {
+      padding: 10px;
+      background: #16213e;
+      font-size: 12px;
+      color: #7ec8e3;
+      border-top: 1px solid #0f3460;
+      display: none;
+    }
+    #vibeResponse:not(:empty) {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -150,8 +184,11 @@
 
   <div id="main">
     <div class="toolbar">
-      <button id="play">▶ Play (Ctrl+Enter)</button>
+      <button id="play">▶ Play</button>
       <button id="stop">■ Stop</button>
+      <input id="apiKeyInput" type="password" placeholder="paste OpenRouter API key..." />
+      <input id="vibePrompt" type="text" placeholder="describe changes... (Enter to send)" style="display:none" />
+      <button id="vibe">🔑 Save Key</button>
     </div>
     <strudel-editor id="editor">
 <!--
@@ -188,11 +225,82 @@ stack(
 )._pianoroll({ labels: 1, cycles: 4 })._scope({ pos: 0.5 })
 -->
     </strudel-editor>
+    <div id="vibeResponse"></div>
     <div id="status">Loading Strudel...</div>
   </div>
 
   <script type="module">
     import { fireproof } from 'https://esm.sh/use-fireproof';
+    import { callAI } from 'https://esm.sh/use-vibes';
+
+    // Strudel LLM Context
+    const STRUDEL_CONTEXT = `## Strudel (LLM Prompt Spec — compact)
+
+### Core idea
+Patterns loop over **1 cycle** by default. Space separates events within a cycle. Most functions accept **numbers or patterns** and are chainable.
+
+### Mini-notation (inside quotes)
+- Sequence: \`"a b c"\` (equal subdivisions per cycle)
+- Rest: \`"~"\`
+- Parallel (stack): \`"a,b"\`  ↔ \`stack(a,b)\`
+- Concatenate across cycles: \`"<a b>"\`
+- Group/subdivide: \`"[a b]"\` (keeps items together)
+- Repeat / speed: \`"x*2"\`  ↔ \`.fast(2)\`
+- Slow (stretch): \`"x/2"\`   ↔ \`.slow(2)\`
+- Euclidean: \`"x(3,8)"\`, rotation \`"x(3,8,1)"\`
+
+### Pattern builders (JS)
+- \`stack(p1, p2, ...)\` parallel layers
+- \`cat(p1, p2, ...)\`   cycle-by-cycle concatenation
+- \`seq(p1, p2, ...)\`   sequence within a cycle
+
+### Sound & notes
+- \`s("bd hh sd")\` or \`.sound("triangle")\` to select samples/synths
+- \`note("c4 d4 g4")\` letters **or** MIDI numbers \`"60 62 67"\`
+- **Chords (simultaneous):** \`note("[c3,eb3,g3]")\`
+- **Chord names:** \`chord("<Gm7 Cm7>").voicing()\`
+
+### Time utilities
+- \`.fast(n)\` \`.slow(n)\` \`.euclid(k,n)\`
+- \`.swing(amount)\` human shuffle (0–1)
+
+### Common params (numbers or patterns)
+- Level/pan: \`.gain(n)\` \`.pan(0..1)\`
+- Filters: \`.lpf(hz)\`, \`.hpf(hz)\`, \`.lpq(q)\`
+- Envelope: \`.attack(s)\` \`.decay(s)\` \`.sustain(0..1)\` \`.release(s)\`
+- Space: \`.room(0..1)\` \`.delay(time)\`
+- Sample banks: \`.bank("RolandTR909")\`
+
+### Example
+\`\`\`js
+stack(
+  s("bd ~ sd ~"),
+  s("hh*8"),
+  note("<c2 c2 g1 c2>").s("sawtooth").lpf(400).gain(0.8)
+).swing(0.6)
+\`\`\`
+`;
+
+    // API Key handling - support #key=xxx hash param
+    function initApiKey() {
+      const hash = window.location.hash;
+      const keyMatch = hash.match(/#key=([^&]+)/);
+      if (keyMatch) {
+        localStorage.setItem('openrouter_api_key', keyMatch[1]);
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+      return localStorage.getItem('openrouter_api_key');
+    }
+
+    function updateKeyUI() {
+      const hasKey = !!localStorage.getItem('openrouter_api_key');
+      document.getElementById('apiKeyInput').style.display = hasKey ? 'none' : 'block';
+      document.getElementById('vibePrompt').style.display = hasKey ? 'block' : 'none';
+      document.getElementById('vibe').textContent = hasKey ? '✨ Vibe' : '🔑 Save Key';
+    }
+
+    // Initialize API key from hash
+    initApiKey();
 
     const db = fireproof('mini-strudel');
     let currentSongId = null;
@@ -243,6 +351,124 @@ stack(
       if (mins < 60) return `${mins}m ago`;
       if (hours < 24) return `${hours}h ago`;
       return `${days}d ago`;
+    }
+
+    // Vibe: Get editor selection
+    function getSelection() {
+      if (!editorInstance) return { text: '', range: null };
+      // editorInstance is StrudelMirror, access underlying CodeMirror via .editor
+      const cm = editorInstance.editor;
+      if (!cm || !cm.state) {
+        // Fallback: use full code
+        const code = getEditorCode();
+        return { text: code, range: { from: 0, to: code.length } };
+      }
+      const state = cm.state;
+      const sel = state.selection.main;
+      if (!sel.empty) {
+        return {
+          text: state.doc.sliceString(sel.from, sel.to),
+          range: { from: sel.from, to: sel.to }
+        };
+      }
+      // No selection = entire document
+      return {
+        text: state.doc.toString(),
+        range: { from: 0, to: state.doc.length }
+      };
+    }
+
+    // Vibe: Call AI via use-vibes
+    async function vibeCall(prompt) {
+      const apiKey = localStorage.getItem('openrouter_api_key');
+      if (!apiKey) return null;
+
+      const response = await callAI(prompt, {
+        model: 'anthropic/claude-sonnet-4',
+        temperature: 0.7,
+        max_tokens: 4000,
+        apiKey,
+        endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+        schema: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Short name for this groove' },
+            code: { type: 'string', description: 'The Strudel code' },
+            explanation: { type: 'string', description: 'Brief explanation of changes' }
+          },
+          required: ['code']
+        }
+      });
+
+      return typeof response === 'string' ? JSON.parse(response) : response;
+    }
+
+    // Vibe: Handle vibe button
+    async function handleVibe() {
+      const promptText = document.getElementById('vibePrompt').value.trim();
+      if (!promptText) return;
+
+      const vibeBtn = document.getElementById('vibe');
+      const vibeResponse = document.getElementById('vibeResponse');
+
+      vibeBtn.disabled = true;
+      vibeBtn.textContent = '⏳ vibing...';
+      vibeResponse.textContent = '';
+
+      try {
+        const { text: selectedText, range } = getSelection();
+        const fullCode = getEditorCode();
+        const isPartial = range && (range.from > 0 || range.to < fullCode.length);
+
+        const userPrompt = `## Current Song
+\`\`\`js
+${fullCode}
+\`\`\`
+
+${STRUDEL_CONTEXT}
+
+## User Request
+${promptText}
+
+${isPartial ? `## Selected Region to Modify (chars ${range.from}-${range.to})
+\`\`\`js
+${selectedText}
+\`\`\`
+IMPORTANT: Provide replacement code for ONLY the selected region. It must fit in context of the surrounding code.` : '## Task\nModify the entire code above.'}
+
+Return JSON with: name (short groove name), code (the replacement code only), explanation (brief)`;
+
+        const result = await vibeCall(userPrompt);
+
+        if (result && result.code && range) {
+          // Replace selection with new code
+          const cm = editorInstance.editor;
+          if (cm) {
+            cm.dispatch({
+              changes: { from: range.from, to: range.to, insert: result.code }
+            });
+          } else {
+            // Fallback: replace entire code
+            setEditorCode(result.code);
+          }
+
+          // Show explanation
+          vibeResponse.textContent = result.explanation || 'Done!';
+          document.getElementById('status').textContent = result.name ? `✨ ${result.name}` : '✨ Vibed!';
+
+          // Auto-evaluate
+          setTimeout(() => {
+            document.dispatchEvent(new CustomEvent('repl-evaluate'));
+          }, 100);
+        }
+      } catch (err) {
+        console.error('[vibe] Error:', err);
+        vibeResponse.textContent = `Error: ${err.message}`;
+        document.getElementById('status').textContent = 'Vibe failed';
+      } finally {
+        vibeBtn.disabled = false;
+        vibeBtn.textContent = '✨ Vibe';
+      }
     }
 
     // Save pattern
@@ -396,6 +622,42 @@ stack(
         await savePattern();
       }
     });
+
+    // Vibe button handler
+    document.getElementById('vibe').onclick = () => {
+      if (!localStorage.getItem('openrouter_api_key')) {
+        // Save key mode
+        const key = document.getElementById('apiKeyInput').value.trim();
+        if (key) {
+          localStorage.setItem('openrouter_api_key', key);
+          document.getElementById('apiKeyInput').value = '';
+          updateKeyUI();
+          document.getElementById('status').textContent = 'API key saved! Enter a prompt to vibe.';
+        }
+      } else {
+        // Vibe mode
+        handleVibe();
+      }
+    };
+
+    // Enter key to submit vibe prompt
+    document.getElementById('vibePrompt').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleVibe();
+      }
+    });
+
+    // Enter key to save API key
+    document.getElementById('apiKeyInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('vibe').click();
+      }
+    });
+
+    // Initialize vibe UI
+    updateKeyUI();
 
     // Live updates
     db.subscribe(async () => {
