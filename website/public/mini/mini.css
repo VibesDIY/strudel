@@ -68,7 +68,8 @@ body {
   position: relative;
 }
 .pattern-item:hover { background: #0f3460; }
-.pattern-item.active { border-left: 3px solid #e94560; padding-left: 17px; }
+.pattern-item.active { border-left: 3px solid #e94560; padding-left: 17px; background: transparent; }
+.pattern-item.active:hover { background: #0f3460; }
 .pattern-delete {
   position: absolute;
   right: 8px;
