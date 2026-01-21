@@ -232,6 +232,7 @@ stack(
   <script type="module">
     import { fireproof } from 'https://esm.sh/use-fireproof';
     import { callAI } from 'https://esm.sh/use-vibes';
+    import { soundMap } from 'https://esm.sh/superdough';
 
     // Strudel LLM Context
     const STRUDEL_CONTEXT = `## Strudel (LLM Prompt Spec — compact)
@@ -392,6 +393,21 @@ stack(
       return `${days}d ago`;
     }
 
+    // Vibe: Get available sounds from soundMap
+    function getAvailableSounds() {
+      try {
+        const sounds = soundMap.get() || {};
+        const soundNames = Object.keys(sounds)
+          .filter(key => !key.startsWith('_'))
+          .sort();
+        return soundNames.length > 0
+          ? `\n\n### Available sounds\n${soundNames.join(', ')}`
+          : '';
+      } catch (e) {
+        return '';
+      }
+    }
+
     // Vibe: Get editor selection
     function getSelection() {
       if (!editorInstance) return { text: '', range: null };
@@ -459,12 +475,14 @@ stack(
         const fullCode = getEditorCode();
         const isPartial = range && (range.from > 0 || range.to < fullCode.length);
 
+        const availableSounds = getAvailableSounds();
+
         const userPrompt = `## Current Song
 \`\`\`js
 ${fullCode}
 \`\`\`
 
-${STRUDEL_CONTEXT}
+${STRUDEL_CONTEXT}${availableSounds}
 
 ## User Request
 ${promptText}
@@ -480,15 +498,26 @@ Return JSON with: name (short groove name), code (the replacement code only), ex
         const result = await vibeCall(userPrompt);
 
         if (result && result.code && range) {
+          // Ensure title comment at top
+          let newCode = result.code;
+          const title = result.name || 'Untitled';
+
+          // If replacing entire doc, prepend title comment
+          if (!isPartial) {
+            // Remove existing title comment if present
+            newCode = newCode.replace(/^\/\/\s*.+\n?/, '');
+            newCode = `// ${title}\n${newCode.trim()}`;
+          }
+
           // Replace selection with new code
           const cm = editorInstance.editor;
           if (cm) {
             cm.dispatch({
-              changes: { from: range.from, to: range.to, insert: result.code }
+              changes: { from: range.from, to: range.to, insert: newCode }
             });
           } else {
             // Fallback: replace entire code
-            setEditorCode(result.code);
+            setEditorCode(newCode);
           }
 
           // Show explanation
