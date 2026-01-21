@@ -190,7 +190,7 @@
       <input id="vibePrompt" type="text" placeholder="describe changes... (Enter to send)" style="display:none" />
       <button id="vibe">🔑 Save Key</button>
     </div>
-    <strudel-editor id="editor">
+    <strudel-editor id="editor" sync latency="0.2">
 <!--
 // Fireproof Drive
 stack(
@@ -317,12 +317,19 @@ stack(
   // drums
   stack(
     s("bd ~ bd ~, ~ sd ~ sd").bank("RolandTR909").gain(0.2),
-    s("hh*16").degradeBy(0.3)
-      .gain(rand.range(0.1, 0.25))
+    s("[hh oh]*4").struct("x(5,8,2)")
+      .gain(0.15)
       .bank("RolandTR909")
-      .ribbon(42, 1)
-      .room(0.3)
-  ),
+      .lpf(1500)
+      .room(0.2)
+  )._pianoroll({ labels: 1, cycles: 2 }),
+  // lead
+  note("g3 bb3 d4 g4 d4 bb3 g3 d3").euclid(isaw.range(3,7).slow(4).floor(), 8)
+    .s("gm_electric_guitar_muted")
+    .dist(0.25).gain(0.75)
+    .room(0.45)
+    .release(0.25)
+    .lpf(2000)._scope({ pos: 0.5 }),
   // bass
   note("g1 ~ d1 g1 ~ bb1 g1 ~")
     .sound("sawtooth")
@@ -334,15 +341,8 @@ stack(
     .sound("sawtooth")
     .lpf(sine.range(600, 1800).slow(8))
     .decay(0.3).sustain(0.2).release(0.5)
-    .gain(0.4),
-  // lead
-  note("g3 bb3 d4 g4 d4 bb3 g3 d3").euclid(isaw.range(3,7).slow(4).floor(), 8)
-    .s("gm_electric_guitar_muted")
-    .gain(0.85)
-    .room(0.45)
-    .release(0.25)
-    .lpf(2000)
-)._pianoroll({ labels: 1, cycles: 4 })._scope({ pos: 0.5 })`;
+    .gain(0.4)
+)`;
 
     // Get editor instance once it's ready
     const waitForEditor = setInterval(() => {
