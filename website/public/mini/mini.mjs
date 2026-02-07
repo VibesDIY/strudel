@@ -275,6 +275,15 @@ const waitForEditor = setInterval(() => {
     editorInstance = editorEl.editor;
     editorInstance.setAutocompletionEnabled(true);
     clearInterval(waitForEditor);
+
+    // Increase scheduler latency for smoother audio (default 0.1s)
+    try {
+      editorInstance.repl.scheduler.latency = 0.5;
+      console.log('[mini] Scheduler latency set to 0.5s');
+    } catch (e) {
+      console.warn('[mini] Could not set scheduler latency:', e);
+    }
+
     // Set default song after a delay to ensure editor is fully ready
     setTimeout(() => {
       if (!editorInstance.code || editorInstance.code.trim() === '') {
