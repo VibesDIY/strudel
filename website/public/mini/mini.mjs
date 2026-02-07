@@ -2,41 +2,13 @@ import { fireproof } from 'https://esm.sh/use-fireproof';
 import { callAI } from 'https://esm.sh/use-vibes';
 import { soundMap } from 'https://esm.sh/superdough';
 
-// Audio recording - taps into strudel's AudioContext (captured in <head>)
+// Audio recording - tap + connect patch set up in <head> before strudel loads
 let mediaRecorder = null;
 let recordedChunks = [];
-let recordingTapInstalled = false;
-let recordDest = null;
-let analyser = null;
 let tailoffTimer = null;
 
-function installRecordingTap() {
-  const ac = window._strudelAC;
-  if (!ac || recordingTapInstalled) return;
-  recordingTapInstalled = true;
-
-  recordDest = ac.createMediaStreamDestination();
-  analyser = ac.createAnalyser();
-  analyser.fftSize = 2048;
-  const tap = ac.createGain();
-  tap.connect(ac.destination);
-  tap.connect(recordDest);
-  tap.connect(analyser);
-
-  // Redirect future connections to ac.destination through our tap
-  const origConnect = AudioNode.prototype.connect;
-  AudioNode.prototype.connect = function(dest, ...args) {
-    if (dest === ac.destination && this !== tap) {
-      return origConnect.call(this, tap, ...args);
-    }
-    return origConnect.call(this, dest, ...args);
-  };
-  console.log('[mini] Recording tap installed');
-}
-
 function startRecording() {
-  installRecordingTap();
-  if (!recordDest) return false;
+  if (!window._recordDest) return false;
 
   recordedChunks = [];
   const mimeType = MediaRecorder.isTypeSupported('audio/mp4;codecs=aac')
@@ -44,7 +16,7 @@ function startRecording() {
     : MediaRecorder.isTypeSupported('audio/mp4')
       ? 'audio/mp4'
       : 'audio/webm;codecs=opus';
-  mediaRecorder = new MediaRecorder(recordDest.stream, {
+  mediaRecorder = new MediaRecorder(window._recordDest.stream, {
     mimeType,
     audioBitsPerSecond: 320000
   });
@@ -61,7 +33,7 @@ function startRecording() {
     a.download = `${title}.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
-    document.getElementById('status').textContent = `Downloaded ${title}.webm`;
+    document.getElementById('status').textContent = `Downloaded ${title}.${ext}`;
   };
   mediaRecorder.start();
   return true;
@@ -70,6 +42,7 @@ function startRecording() {
 // Wait for audio to die out before stopping the recorder
 function stopRecordingWithTailoff() {
   if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+  const analyser = window._recordAnalyser;
   if (!analyser) { mediaRecorder.stop(); return; }
 
   const buf = new Float32Array(analyser.fftSize);

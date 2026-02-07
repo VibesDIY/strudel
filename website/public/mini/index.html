@@ -3,15 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <title>Mini Strudel</title>
-  <!-- Capture strudel's AudioContext before UMD bundle creates it -->
+  <!-- Capture strudel's AudioContext and install recording tap before any audio connects -->
   <script>
-    const _OrigAudioContext = window.AudioContext;
+    const _OrigAC = window.AudioContext || window.webkitAudioContext;
+    window._recordDest = null;
+
     window.AudioContext = function(...args) {
-      const ac = new _OrigAudioContext(...args);
-      if (!window._strudelAC) window._strudelAC = ac;
+      const ac = new _OrigAC(...args);
+      if (!window._strudelAC) {
+        window._strudelAC = ac;
+
+        // Set up recording tap immediately so ALL connections are captured
+        const tap = ac.createGain();
+        window._recordDest = ac.createMediaStreamDestination();
+        window._recordAnalyser = ac.createAnalyser();
+        window._recordAnalyser.fftSize = 2048;
+        tap.connect(ac.destination);
+        tap.connect(window._recordDest);
+        tap.connect(window._recordAnalyser);
+
+        // Redirect all connections to destination through our tap
+        const _origConnect = AudioNode.prototype.connect;
+        AudioNode.prototype.connect = function(dest, ...rest) {
+          if (dest === ac.destination && this !== tap) {
+            return _origConnect.call(this, tap, ...rest);
+          }
+          return _origConnect.call(this, dest, ...rest);
+        };
+      }
       return ac;
     };
-    window.AudioContext.prototype = _OrigAudioContext.prototype;
+    window.AudioContext.prototype = _OrigAC.prototype;
+    if (window.webkitAudioContext) window.webkitAudioContext = window.AudioContext;
   </script>
   <script src="https://unpkg.com/@strudel/repl@1.3.0"></script>
   <link rel="stylesheet" href="mini.css">
