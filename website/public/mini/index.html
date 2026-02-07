@@ -3,6 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <title>Mini Strudel</title>
+  <!-- Capture strudel's AudioContext before UMD bundle creates it -->
+  <script>
+    const _OrigAudioContext = window.AudioContext;
+    window.AudioContext = function(...args) {
+      const ac = new _OrigAudioContext(...args);
+      if (!window._strudelAC) window._strudelAC = ac;
+      return ac;
+    };
+    window.AudioContext.prototype = _OrigAudioContext.prototype;
+  </script>
   <script src="https://unpkg.com/@strudel/repl@1.3.0"></script>
   <link rel="stylesheet" href="mini.css">
 </head>
@@ -19,6 +29,7 @@
     <div class="toolbar">
       <button id="play">▶ Play</button>
       <button id="stop">■ Stop</button>
+      <button id="record">⏺ Rec</button>
       <input id="apiKeyInput" type="password" placeholder="paste OpenRouter API key..." />
       <input id="vibePrompt" type="text" placeholder="describe changes... (Enter to send)" style="display:none" />
       <button id="vibe">🔑 Save Key</button>

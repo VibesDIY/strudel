@@ -2,6 +2,110 @@ import { fireproof } from 'https://esm.sh/use-fireproof';
 import { callAI } from 'https://esm.sh/use-vibes';
 import { soundMap } from 'https://esm.sh/superdough';
 
+// Audio recording - taps into strudel's AudioContext (captured in <head>)
+let mediaRecorder = null;
+let recordedChunks = [];
+let recordingTapInstalled = false;
+let recordDest = null;
+let analyser = null;
+let tailoffTimer = null;
+
+function installRecordingTap() {
+  const ac = window._strudelAC;
+  if (!ac || recordingTapInstalled) return;
+  recordingTapInstalled = true;
+
+  recordDest = ac.createMediaStreamDestination();
+  analyser = ac.createAnalyser();
+  analyser.fftSize = 2048;
+  const tap = ac.createGain();
+  tap.connect(ac.destination);
+  tap.connect(recordDest);
+  tap.connect(analyser);
+
+  // Redirect future connections to ac.destination through our tap
+  const origConnect = AudioNode.prototype.connect;
+  AudioNode.prototype.connect = function(dest, ...args) {
+    if (dest === ac.destination && this !== tap) {
+      return origConnect.call(this, tap, ...args);
+    }
+    return origConnect.call(this, dest, ...args);
+  };
+  console.log('[mini] Recording tap installed');
+}
+
+function startRecording() {
+  installRecordingTap();
+  if (!recordDest) return false;
+
+  recordedChunks = [];
+  const mimeType = MediaRecorder.isTypeSupported('audio/mp4;codecs=aac')
+    ? 'audio/mp4;codecs=aac'
+    : MediaRecorder.isTypeSupported('audio/mp4')
+      ? 'audio/mp4'
+      : 'audio/webm;codecs=opus';
+  mediaRecorder = new MediaRecorder(recordDest.stream, {
+    mimeType,
+    audioBitsPerSecond: 320000
+  });
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data.size > 0) recordedChunks.push(e.data);
+  };
+  mediaRecorder.onstop = () => {
+    const ext = mediaRecorder.mimeType.includes('mp4') ? 'm4a' : 'webm';
+    const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const title = getEditorCode().match(/^\/\/\s*(.+)$/m)?.[1]?.trim() || 'recording';
+    a.href = url;
+    a.download = `${title}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    document.getElementById('status').textContent = `Downloaded ${title}.webm`;
+  };
+  mediaRecorder.start();
+  return true;
+}
+
+// Wait for audio to die out before stopping the recorder
+function stopRecordingWithTailoff() {
+  if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+  if (!analyser) { mediaRecorder.stop(); return; }
+
+  const buf = new Float32Array(analyser.fftSize);
+  const threshold = 0.001; // ~ -60dB
+  let silentFrames = 0;
+  const neededSilentFrames = 10; // ~500ms at 50ms intervals
+
+  document.getElementById('status').textContent = 'Waiting for audio tail...';
+
+  tailoffTimer = setInterval(() => {
+    analyser.getFloatTimeDomainData(buf);
+    const peak = buf.reduce((max, v) => Math.max(max, Math.abs(v)), 0);
+
+    if (peak < threshold) {
+      silentFrames++;
+      if (silentFrames >= neededSilentFrames) {
+        clearInterval(tailoffTimer);
+        tailoffTimer = null;
+        mediaRecorder.stop();
+      }
+    } else {
+      silentFrames = 0;
+    }
+  }, 50);
+}
+
+function stopRecording() {
+  if (tailoffTimer) {
+    clearInterval(tailoffTimer);
+    tailoffTimer = null;
+  }
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+  }
+}
+
 // Strudel LLM Context
 const STRUDEL_CONTEXT = `## Strudel (LLM Prompt Spec — compact)
 
@@ -500,6 +604,30 @@ document.getElementById('play').onclick = () => {
 document.getElementById('stop').onclick = () => {
   document.dispatchEvent(new CustomEvent('repl-stop'));
   document.getElementById('status').textContent = 'Stopped';
+  // If recording, stop playback but let audio tail out before saving
+  const recBtn = document.getElementById('record');
+  if (recBtn.classList.contains('recording')) {
+    recBtn.classList.remove('recording');
+    recBtn.textContent = '⏺ Rec';
+    stopRecordingWithTailoff();
+  }
+};
+
+// Record button
+document.getElementById('record').onclick = () => {
+  const recBtn = document.getElementById('record');
+  if (recBtn.classList.contains('recording')) {
+    // Stop recording immediately (no tailoff) when clicking Rec button directly
+    stopRecording();
+    recBtn.classList.remove('recording');
+    recBtn.textContent = '⏺ Rec';
+  } else {
+    if (startRecording()) {
+      recBtn.classList.add('recording');
+      recBtn.textContent = '⏹ Stop Rec';
+      document.getElementById('status').textContent = 'Recording... (re-evaluate to capture)';
+    }
+  }
 };
 
 document.getElementById('newSong').onclick = () => {

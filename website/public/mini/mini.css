@@ -154,6 +154,14 @@ strudel-editor {
   opacity: 0.5;
   cursor: not-allowed;
 }
+#record.recording {
+  background: #e94560;
+  animation: pulse 1s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
 #balance {
   font-size: 11px;
   color: #7ec8e3;
